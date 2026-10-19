@@ -1,0 +1,31 @@
+# uv workspace: one Python package per folder in packages/, each with its own version and release.
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+# Development environment of the workspace: the packages and their test dependencies.
+dev = [
+  "croissant-duckdb[test]",
+  "ruff>=0.17.1",
+]
+
+[tool.uv.sources]
+croissant-duckdb = { workspace = true }
+
+# Linting and formatting, for every package of the workspace: `uv run ruff check` and
+# `uv run ruff format`.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Where the project's own modules are, for import sorting (packages and test helpers).
+src = ["packages/*/src", "packages/*/tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",  # pycodestyle
+  "F",       # pyflakes: undefined names, unused imports and variables
+  "I",       # import sorting
+  "UP",      # modern syntax for the target Python version
+  "B",       # likely bugs
+  "SIM",     # simplifications
+]

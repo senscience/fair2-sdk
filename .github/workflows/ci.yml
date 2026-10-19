@@ -1,0 +1,51 @@
+# Lint and test the packages of the workspace, on every pull request.
+name: CI
+
+on:
+  pull_request:
+
+# Read-only access to the repository is enough.
+permissions:
+  contents: read
+
+# A new push to the pull request cancels the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10
+      - name: Install the workspace
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check --output-format github
+      - name: Check the formatting
+        run: uv run ruff format --check
+
+  test:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      # Run every version even if one fails, to see all the failures at once.
+      fail-fast: false
+      matrix:
+        # From the minimum supported by the packages (requires-python) to the latest.
+        python: ["3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install the workspace
+        run: uv sync --locked
+      - name: Test croissant-duckdb
+        run: uv run pytest packages/croissant-duckdb/tests
