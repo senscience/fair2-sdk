@@ -1,0 +1,22 @@
+{
+  "name": "fair2-widgets",
+  "private": true,
+  "description": "The JavaScript of fair2's notebook widgets, bundled into src/fair2/static by `npm run build`.",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/query_box.js --bundle --format=esm --minify --target=es2020 --outfile=../src/fair2/static/query_box.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "6.20.4",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-sql": "6.10.0",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "codemirror": "6.0.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
