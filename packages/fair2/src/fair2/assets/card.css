@@ -1,0 +1,28 @@
+/* Layout of the dataset card, scoped to it. Without a theme, the card follows the notebook's look.
+
+   JupyterLab aligns the cells of HTML outputs to the right, with two classes
+   (:not(.jp-RenderedMarkdown).jp-RenderedHTMLCommon td): the doubled class outweighs it. */
+.fair2-card.fair2-card table :is(th, td) { text-align: left; vertical-align: top; }
+.fair2-card.fair2-card table :is(td, th).number { text-align: right; white-space: nowrap; }
+.fair2-card summary { cursor: pointer; margin: 0.3em 0; }
+/* The title of a folded section, sized like a heading, on the line of the arrow. */
+.fair2-card .fair2-section { font-weight: bold; font-size: 1.15em; }
+/* Names can be whole sentences or paths: they wrap anywhere; a table still too wide scrolls. */
+.fair2-card td.name { overflow-wrap: anywhere; min-width: 8em; }
+.fair2-card td.name code { white-space: normal; }
+.fair2-card .scroll { overflow-x: auto; max-width: 100%; }
+/* The search box, above the record sets: its styling follows the notebook's colours. */
+.fair2-card .fair2-search { margin: 0.6em 0 0.2em; display: flex; align-items: center; gap: 0.75em; }
+.fair2-card .fair2-search input {
+  width: min(26em, 100%); padding: 0.35em 0.8em; border-radius: 9999px; font: inherit;
+  border: 1px solid currentColor; background: transparent; color: inherit;
+}
+.fair2-card .fair2-search label { font-weight: bold; }
+.fair2-card .fair2-search-clear {
+  padding: 0.3em 0.9em; border-radius: 9999px; border: 1px solid currentColor;
+  background: transparent; color: inherit; font: inherit; cursor: pointer;
+}
+.fair2-card .fair2-search-clear[hidden] { display: none; }
+/* One way to clear, the same in every browser: the Clear button, not Chrome's own cross. */
+.fair2-card .fair2-search input::-webkit-search-cancel-button { display: none; }
+.fair2-card .fair2-search-count { opacity: 0.75; font-size: 0.9em; }

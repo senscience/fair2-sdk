@@ -1,0 +1,28 @@
+/* With a theme: colours from its variables (Theme.css). The doubled class outweighs the table
+   styles of the notebook frontends (JupyterLab stripes and highlights rows). */
+.fair2-card.fair2-themed {
+  background: var(--f2-background); color: var(--f2-foreground);
+  border: 1px solid var(--f2-border); border-radius: 16px; padding: 1.25em 1.5em; margin: 0.5em 0;
+}
+.fair2-card.fair2-themed .fair2-logo { color: var(--f2-logo); }
+.fair2-card.fair2-themed .fair2-logo svg { display: block; height: 2.25em; width: auto; }
+.fair2-card.fair2-themed h2 { color: var(--f2-foreground); margin: 0.6em 0 0.4em; }
+.fair2-card.fair2-themed a { color: var(--f2-link); }
+.fair2-card.fair2-themed .fair2-section { color: var(--f2-link); }
+.fair2-card.fair2-themed .fair2-summary { color: var(--f2-muted); }
+.fair2-card.fair2-themed .fair2-sep { display: none; }
+.fair2-card.fair2-themed .fair2-badges { display: flex; flex-wrap: wrap; gap: 0.4em; }
+.fair2-card.fair2-themed .fair2-badge {
+  background: var(--f2-badge); color: var(--f2-badge-foreground);
+  border-radius: 9999px; padding: 0.15em 0.75em; font-size: 0.85em;
+}
+.fair2-card.fair2-themed .fair2-badge a { color: inherit; }
+.fair2-card.fair2-themed table { border-collapse: collapse; border: none; }
+.fair2-card.fair2-themed tr:nth-child(n) { background: transparent; }
+.fair2-card.fair2-themed th, .fair2-card.fair2-themed td {
+  border: none; border-bottom: 1px solid var(--f2-border); padding: 0.35em 0.6em;
+  color: var(--f2-foreground);
+}
+.fair2-card.fair2-themed th { background: var(--f2-highlight); color: var(--f2-muted); }
+.fair2-card.fair2-themed code { background: none; color: inherit; }
+.fair2-card.fair2-themed .fair2-warning { color: var(--f2-warning); }

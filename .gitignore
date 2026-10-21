@@ -9,3 +9,6 @@ dist/
 # IDE and OS files
 .idea/
 .DS_Store
+
+# JavaScript dependencies of the widgets (packages/*/js)
+node_modules/

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fair2"
+version = "0.1.0"
+description = "Helpers for the notebooks: dataset cards, a SQL editor, a figure style."
+readme = "README.md"
+requires-python = ">=3.12"
+# Upper bounds: the next minor version for croissant-duckdb (0.x), the next major one for the others.
+dependencies = [
+  "croissant-duckdb>=0.1.0,<0.2",
+  "duckdb>=1.5.6,<2",
+  "jinja2>=3.1.6,<4",
+  "markupsafe>=3.0.3,<4",
+]
+
+[project.optional-dependencies]
+# fair2.query_box: anywidget (with ipywidgets) for the SQL editor.
+widgets = ["anywidget>=0.11.0,<0.12"]
+test = ["pytest>=9.1.1,<10", "anywidget>=0.11.0,<0.12", "matplotlib>=3.11.2,<4"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The template of the card, its stylesheets, and the bundled JavaScript of the query box (js/).
+[tool.setuptools.package-data]
+fair2 = ["templates/*.j2", "assets/*.css", "assets/*.js", "static/*.js"]

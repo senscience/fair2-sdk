@@ -1,0 +1,166 @@
+{#- The dataset card (fair2.html.render). Autoescaped: every text of the metadata is escaped. Only
+    `style` and the theme's logo, which come from the code, are inserted as they are. -#}
+
+{%- macro link(l) -%}
+  {%- if l.url and l.url.startswith(("https://", "http://")) -%}
+    <a href="{{ l.url }}" target="_blank">{{ l.text }}</a>
+  {%- else -%}
+    {{ l.text }}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- A link or a text. -#}
+{%- macro value(v) -%}{{ link(v) if v is link else v }}{%- endmacro -%}
+
+{#- Paragraphs separated by blank lines, and line breaks inside them. -#}
+{%- macro paragraphs(text) -%}
+  {%- for p in text.split("\n\n") if p.strip() -%}
+    <p>{% for line in p.strip().split("\n") %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>
+  {%- endfor -%}
+{%- endmacro -%}
+
+{#- One text as paragraphs, several as a list. -#}
+{%- macro texts(items) -%}
+  {%- if items | length == 1 -%}
+    {{ paragraphs(items[0]) }}
+  {%- else -%}
+    <ul>{% for item in items %}<li>{{ item }}</li>{% endfor %}</ul>
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- A part of the card, folded since it can be long, with a summary of its content. The title is
+    text rather than a heading: it stays on the line of the arrow, and out of the notebook's table
+    of contents. -#}
+{%- macro section(title, summary=none, searchable=false) -%}
+<details{% if searchable %} data-fair2-section{% endif %}><summary><span class="fair2-section">{{ title }}</span>
+  {%- if summary %} <span class="fair2-summary">({{ summary }})</span>{% endif -%}
+</summary>
+{{ caller() }}
+</details>
+{%- endmacro -%}
+
+{#- A table that scrolls when it is too wide. -#}
+{%- macro table() -%}
+<div class="scroll"><table>{{ caller() }}</table></div>
+{%- endmacro -%}
+
+<style>
+{{ style }}
+</style>
+<div class="fair2-card{% if theme %} fair2-themed{% endif %}" id="{{ card_id }}">
+{% if theme and theme.logo %}
+<div class="fair2-logo" role="img" aria-label="{{ theme.logo_label }}">{{ theme.logo | safe }}</div>
+{% endif %}
+<h2>{{ card.name }}</h2>
+{% if badges %}
+{#- Badges with a theme; separated by dots without one. #}
+<p class="fair2-badges">
+  {%- for prefix, v in badges -%}
+    {% if not loop.first %}<span class="fair2-sep"> · </span>{% endif %}<span class="fair2-badge">{{ prefix }}{{ value(v) }}</span>
+  {%- endfor -%}
+</p>
+{% endif %}
+{% if card.description %}
+{{ paragraphs(card.description) }}
+{% endif %}
+{% if about %}
+<table>
+{% for label, v in about %}
+<tr><th>{{ label }}</th><td>{{ value(v) }}</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% if card.responsible_use %}
+{#- Its sections are the labels inside, not repeated in the title. #}
+{% call section("Responsible use") %}
+{% for label, items in card.responsible_use %}
+<p><strong>{{ label }}</strong></p>
+{{ texts(items) }}
+{% endfor %}
+{% endcall %}
+{% endif %}
+{% if card.record_sets %}
+{% set record_sets = card.record_sets %}
+{% set tables = record_sets | selectattr("table") | list | length %}
+{% set summary = record_sets | length | plural("record set") %}
+{% if tables or record_sets | selectattr("skipped") | list %}
+  {% set summary = summary ~ ", " ~ tables ~ " with a DuckDB table" %}
+{% endif %}
+{% call section("Record sets", summary, true) %}
+{% call table() %}
+<tr><th>Record set</th><th>File</th><th>Format</th><th class="number">Size</th><th class="number">Rows</th><th class="number">Fields</th><th>DuckDB table</th></tr>
+{% for rs in record_sets %}
+<tr data-fair2-row="record-set">
+  {#- #}<td class="name">{{ rs.name }}</td>
+  {#- #}<td class="name">{{ link(rs.file) if rs.file else "" }}</td>
+  {#- #}<td>{{ rs.format or "" }}</td>
+  {#- #}<td class="number">{{ rs.size | size }}</td>
+  {#- #}<td class="number">{{ rs.rows | number }}</td>
+  {#- #}<td class="number">{{ rs.fields | length }}</td>
+  {#- #}<td class="name">
+    {%- if rs.table -%}
+      <code>{{ rs.table }}</code>
+    {%- elif rs.skipped -%}
+      {#- "column 'x' not found in <URL>": the file is in the File column. -#}
+      <em class="fair2-warning">none: {{ rs.skipped | replace(rs.file.url, rs.file.text) if rs.file and rs.file.url else rs.skipped }}</em>
+    {%- endif -%}
+  </td>
+{#- #}</tr>
+{% endfor %}
+{% endcall %}
+{% endcall %}
+{% set fields = record_sets | map(attribute="fields") | map("length") | sum %}
+{% call section("Fields", fields | plural("field"), true) %}
+{% for rs in record_sets %}
+{#- The fields of a record set, folded under its name. #}
+<details data-fair2-group data-fair2-text="{{ rs.name }} {{ rs.description or '' }}"><summary><strong>{{ rs.name }}</strong> ({% if rs.rows is not none %}{{ rs.rows | number }} rows × {% endif %}{{ rs.fields | length | plural("field") }})</summary>
+{% if rs.description %}
+{{ paragraphs(rs.description) }}
+{% endif %}
+{% set with_stats = rs.fields | selectattr("stats") | list %}
+{#- Only for the record sets whose metadata gives statistics. #}
+{% set with_top_values = rs.fields | selectattr("top_values") | list %}
+{% call table() %}
+<tr><th>Field</th><th>Type</th><th>Unit</th>
+  {%- if with_stats %}<th class="number">Missing</th><th class="number">Range or distinct values</th>{% endif -%}
+  {%- if with_top_values %}<th>Most frequent values</th>{% endif -%}
+  <th>Description</th></tr>
+{% for f in rs.fields %}
+<tr data-fair2-field>
+  {#- #}<td class="name"><code>{{ f.name }}</code></td>
+  {#- #}<td>{{ f.data_type or "" }}</td>
+  {#- #}<td>{{ f.unit or "" }}</td>
+  {%- if with_stats %}
+  {#- #}<td class="number">{{ f.stats | missing(rs.rows) }}</td>
+  {#- #}<td class="number">{{ f.stats | value_range }}</td>
+  {%- endif %}
+  {%- if with_top_values %}
+  {#- #}<td>{{ f.top_values | top_values }}</td>
+  {%- endif %}
+  {#- #}<td>{{ f.description or "" }}</td>
+{#- #}</tr>
+{% endfor %}
+{% endcall %}
+</details>
+{% endfor %}
+{% endcall %}
+{% endif %}
+{% if card.other_files %}
+{% call section("Other files", card.other_files | length | plural("file") ~ " not in a record set", true) %}
+{% call table() %}
+<tr><th>File</th><th>Format</th><th class="number">Size</th><th>Description</th></tr>
+{% for f in card.other_files %}
+<tr data-fair2-row="file">
+  {#- #}<td class="name">{{ link(f.file) }}</td>
+  {#- #}<td>{{ f.format or "" }}</td>
+  {#- #}<td class="number">{{ f.size | size }}</td>
+  {#- #}<td>{{ f.description or "" }}</td>
+{#- #}</tr>
+{% endfor %}
+{% endcall %}
+{% endcall %}
+{% endif %}
+{#- In a block: each card has its own CARD_ID, also with several cards in a notebook. #}
+<script>{ const CARD_ID = {{ card_id | tojson }};
+{{ script }} }</script>
+</div>
