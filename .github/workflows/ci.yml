@@ -51,6 +51,25 @@ jobs:
         run: uv run pytest packages/croissant-duckdb/tests
       - name: Test fair2
         run: uv run pytest packages/fair2/tests
+      - name: Test notebook-runner
+        run: uv run pytest packages/notebook-runner/tests
+
+  notebook-runner-py311:
+    # notebook-runner supports Python 3.11 (the version of the backend), below the workspace's 3.12:
+    # tested on its own, installed outside the workspace.
+    name: Tests of notebook-runner (Python 3.11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.0
+      - name: Install notebook-runner
+        run: |
+          uv venv --python 3.11 /tmp/py311
+          uv pip install --python /tmp/py311/bin/python "./packages/notebook-runner[test]"
+      - name: Test notebook-runner
+        run: /tmp/py311/bin/python -m pytest packages/notebook-runner/tests
 
   widgets:
     name: Widgets (JavaScript)
