@@ -7,12 +7,14 @@ members = ["packages/*"]
 dev = [
   "croissant-duckdb[test]",
   "fair2[test]",
+  "notebook-runner[test]",
   "ruff>=0.17.1",
 ]
 
 [tool.uv.sources]
 croissant-duckdb = { workspace = true }
 fair2 = { workspace = true }
+notebook-runner = { workspace = true }
 
 # Linting and formatting, for every package of the workspace: `uv run ruff check` and
 # `uv run ruff format`.

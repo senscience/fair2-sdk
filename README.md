@@ -6,6 +6,7 @@ Python packages for working with the datasets of the SENSCIENCE FAIR² Data Port
 |---|---|
 | [`croissant-duckdb`](packages/croissant-duckdb) | Expose the record sets of a Croissant dataset as DuckDB tables and views |
 | [`fair2`](packages/fair2) | Dataset cards, a SQL editor with completion and export, and a figure style, for the notebooks of the FAIR² datasets |
+| [`notebook-runner`](packages/notebook-runner) | Run notebooks from scratch and measure them: completion, time, memory, downloads, dependencies, files written |
 
 ## Development
 
@@ -14,7 +15,7 @@ package lives in `packages/<name>` with its own `pyproject.toml` and version.
 
 ```
 uv sync
-uv run pytest packages/croissant-duckdb/tests packages/fair2/tests
+uv run pytest packages/croissant-duckdb/tests packages/fair2/tests packages/notebook-runner/tests
 ```
 
 Code is linted and formatted with [Ruff](https://docs.astral.sh/ruff/), configured in the root
