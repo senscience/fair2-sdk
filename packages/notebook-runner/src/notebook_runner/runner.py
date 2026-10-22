@@ -324,6 +324,13 @@ def _execute(
                     previous = errors[-1].cell if errors else None
                     try:
                         client.execute_cell(cell, index)
+                        if time.perf_counter() - cell_start >= timeout:
+                            # Interrupted at the timeout, but the cell ended without an error:
+                            # it caught the interrupt, or nbclient was still waiting for the
+                            # kernel's reply (py3Dmol in an ipywidgets Output, without a browser).
+                            error = Error(
+                                index, "Timeout", f"interrupted after {timeout} s", "", previous
+                            )
                     except CellExecutionError as e:
                         if (
                             e.ename == "KeyboardInterrupt"
