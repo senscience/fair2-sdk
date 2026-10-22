@@ -182,6 +182,14 @@ def test_a_cell_that_times_out_is_interrupted(tmp_path):
     assert report.cells[1].error is None and report.cells[1].seconds is not None
 
 
+def test_a_timeout_is_reported_even_if_the_cell_ends_without_error(tmp_path):
+    # The interrupt is caught, so the cell ends normally, but after the timeout.
+    cell = "import time\ntry:\n    time.sleep(30)\nexcept KeyboardInterrupt:\n    pass"
+    report = notebook_runner.run(notebook(tmp_path, cell), timeout=2)
+    assert [(e.cell, e.name) for e in report.errors.runtime] == [(1, "Timeout")]
+    assert not report.ok
+
+
 def test_skipping_cells_by_id_and_tag(tmp_path):
     path = notebook(
         tmp_path,
