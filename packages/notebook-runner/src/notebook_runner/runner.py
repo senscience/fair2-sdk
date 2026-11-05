@@ -21,6 +21,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
@@ -312,6 +313,10 @@ def _execute(
         # The kernel, and the processes it starts (pip, curl), go through the counting proxy.
         proxy = measure.CountingProxy() if count_downloads else None
         kernel_env = {"env": {**os.environ, **env, **(proxy.environment() if proxy else {})}}
+        # With a given Python, its environment is activated for the kernel: the notebook's shell
+        # commands (`!pip install`) then use that environment's tools, not the runner's ones.
+        if python is not None:
+            kernel_env["env"].update(_activated(python, kernel_env["env"].get("PATH", "")))
         start = time.perf_counter()
         try:
             with client.setup_kernel(**kernel_env):
@@ -492,6 +497,32 @@ def _version(distribution: str) -> str:
         return importlib.metadata.version(distribution)
     except importlib.metadata.PackageNotFoundError:
         return "unknown"
+
+
+def _activated(python: str | Path, path: str) -> dict[str, str]:
+    """The variables of the environment `python` belongs to, as when it is activated.
+
+    The shell commands of the notebook (`!pip install`) then run that environment's tools,
+    not the first ones on the runner's PATH, or none. The interpreter itself says where its
+    scripts are and whether it runs in a virtual environment (PEP 405: `sys.prefix` differs from
+    `sys.base_prefix`).
+    """
+    prefix, base_prefix, scripts = json.loads(
+        subprocess.run(
+            [str(python), "-c", _ENVIRONMENT], check=True, capture_output=True, text=True
+        ).stdout
+    )
+    variables = {"PATH": os.pathsep.join(filter(None, [scripts, path]))}
+    if prefix != base_prefix:
+        variables["VIRTUAL_ENV"] = prefix
+    return variables
+
+
+# Run by the notebook's Python: its prefixes and the folder of its scripts (pip...).
+_ENVIRONMENT = (
+    "import json, sys, sysconfig; "
+    "print(json.dumps([sys.prefix, sys.base_prefix, sysconfig.get_path('scripts')]))"
+)
 
 
 def _kernel_manager(python: str | Path | None, kernels: Path) -> AsyncKernelManager:
