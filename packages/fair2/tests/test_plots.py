@@ -36,3 +36,21 @@ def test_style_for_the_session():
         assert matplotlib.rcParams["image.cmap"] == "fair2"
     finally:
         matplotlib.rcdefaults()
+
+
+def test_plotly_template_by_default():
+    import plotly.express as px
+    import plotly.io as pio
+
+    previous = pio.templates.default
+    try:
+        fair2.plotly_style()
+        assert pio.templates.default == "plotly_white+fair2"
+        fig = px.bar(x=["a", "b"], y=[1, 2], color=["a", "b"])
+        layout = fig.layout.template.layout
+        assert list(layout.colorway) == colors.CATEGORICAL
+        assert layout.colorscale.diverging[2][1] == colors.DIVERGING[2]
+        # The first series takes the first categorical colour.
+        assert fig.data[0].marker.color == colors.CATEGORICAL[0]
+    finally:
+        pio.templates.default = previous
