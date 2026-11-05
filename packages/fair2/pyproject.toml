@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fair2"
 version = "0.1.0"
-description = "Helpers for the notebooks: dataset cards, a SQL editor, a figure style."
+description = "Helpers for the notebooks: dataset cards, a SQL editor, figure styles."
 readme = "README.md"
 requires-python = ">=3.12"
 # Upper bounds: the next minor version for croissant-duckdb (0.x), the next major one for the others.
@@ -19,7 +19,12 @@ dependencies = [
 [project.optional-dependencies]
 # fair2.query_box: anywidget (with ipywidgets) for the SQL editor.
 widgets = ["anywidget>=0.11.0,<0.12"]
-test = ["pytest>=9.1.1,<10", "anywidget>=0.11.0,<0.12", "matplotlib>=3.11.2,<4"]
+# fair2.table: tables sorted, searched and paged in the browser.
+tables = ["itables>=2.9.1,<3"]
+# fair2.plotly_style: the template of Plotly figures; nbformat, for fig.show() in notebooks (Jupyter
+# and Colab have it, a kernel in a plain virtual environment doesn't).
+plotly = ["plotly>=7.1.0,<8", "nbformat>=5.11.1,<6"]
+test = ["pytest>=9.1.1,<10", "anywidget>=0.11.0,<0.12", "matplotlib>=3.11.2,<4", "plotly>=7.1.0,<8", "itables>=2.9.1,<3"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

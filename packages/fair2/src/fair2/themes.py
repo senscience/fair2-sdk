@@ -9,6 +9,7 @@ Colours are CSS variables scoped to the card, so the notebook isn't restyled.
 from __future__ import annotations
 
 import dataclasses
+import functools
 from importlib import resources
 
 # The colours a theme sets, as CSS colours. The card's rules only read these.
@@ -61,8 +62,9 @@ class Theme:
         )
 
 
+@functools.cache
 def asset(name: str) -> str:
-    """A file of fair2/assets: the stylesheets of the card."""
+    """A file of fair2/assets: the stylesheets and the script of the card, read once."""
     return (resources.files("fair2") / "assets" / name).read_text(encoding="utf-8")
 
 

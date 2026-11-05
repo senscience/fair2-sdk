@@ -109,6 +109,27 @@ npm test
 npm run build
 ```
 
+## Tables
+
+`fair2.table(relation)` shows the result of a DuckDB query as a table. Each column has a kind,
+from its DuckDB type (`fair2.Kind`): integers and numbers, right-aligned with thousands separators;
+dates, timestamps and times, right-aligned in ISO format, as DuckDB writes them; booleans; and text
+for the rest (lists, structs, intervals as DuckDB writes them). `units=` gives the unit of the
+columns, in their header: `fair2.units(db)` has the units of the fair2.json fields, by name, so the
+columns of a query that keep a field's name get its unit (`age (a)`), and computed ones don't.
+Placeholder units (Unitless, Unknown) aren't shown, nor the names with different units in different
+record sets; `fair2.units(db, "participants")` takes those of one record set.
+
+With the `tables` extra (`fair2[tables]`: [ITables](https://mwouts.github.io/itables/)), the table
+can be sorted by its columns, searched and paged, in the browser: no kernel is needed, and up to
+10,000 rows (`max_rows=`) are put in the notebook. DataTables, the JavaScript of ITables, is loaded
+from a CDN when the notebook is opened. Where scripts don't run (GitHub, untrusted notebooks), and
+without the extra, it is a plain HTML table of the first 100 rows (`limit=`).
+
+```python
+fair2.table(db.sql('SELECT participant_id, age, visit FROM "participants"'), units=fair2.units(db))
+```
+
 ## Figures
 
 `fair2.plot_style()` sets matplotlib's defaults to the Frontiers brand of FAIR² Discovery: series
@@ -133,6 +154,17 @@ readers and contrast:
 fair2.plot_style()
 palette = fair2.colors.ordinal(3) + [fair2.colors.NEUTRAL]
 counts.plot.barh(stacked=True, color=palette)
+```
+
+`fair2.plotly_style()` does the same for Plotly, with the `plotly` extra (`fair2[plotly]`): it
+registers a `"fair2"` template, on top of `"plotly_white"`, and makes it the default. Series take
+the categorical colours, the `"sequential"` and `"diverging"` colour scales are `SEQUENTIAL` and
+`DIVERGING`, and the axes are recessive. `fig.update_layout(template="fair2")` then applies it to
+a figure that has another template.
+
+```python
+fair2.plotly_style()
+px.bar(counts, x="level", y="n", color="group")
 ```
 
 ## Install

@@ -1,0 +1,43 @@
+{#- A query result as a table. The alignment is also set on each cell: Jupyter's styles right-align
+    cells, and the <style> element is removed where outputs are sanitized. With ITables, its table
+    comes first, and the plain one is removed by a script: where scripts don't run, the plain one
+    is what shows. -#}
+<div class="fair2-table" id="{{ table.id }}">
+{% if table.interactive %}
+{{ interactive }}
+{% endif %}
+<div class="fair2-table-plain">
+<style>
+.fair2-table-plain.fair2-table-plain table { border-collapse: collapse; font-size: 0.9em; }
+.fair2-table-plain.fair2-table-plain th, .fair2-table-plain.fair2-table-plain td { padding: 0.25em 0.75em; vertical-align: top; }
+.fair2-table-plain.fair2-table-plain th { border-bottom: 1px solid currentColor; font-weight: 600; }
+.fair2-table-plain.fair2-table-plain td:is(.integer, .number, .date, .timestamp, .time) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fair2-table-plain.fair2-table-plain th .unit { font-weight: normal; opacity: 0.75; }
+.fair2-table-plain.fair2-table-plain tbody tr:nth-child(even) { background: rgba(127, 127, 127, 0.08); }
+.fair2-table-plain.fair2-table-plain p { margin: 0.4em 0 0; opacity: 0.7; font-size: 0.85em; }
+</style>
+<table>
+<thead><tr>
+{% for column in table.columns %}
+<th style="text-align: {{ column.align }}">{{ column.name }}{% if column.unit %} <span class="unit">({{ column.unit }})</span>{% endif %}</th>
+{% endfor %}
+</tr></thead>
+<tbody>
+{% for row in table.rows %}
+<tr>
+{% for value in row %}
+{% set column = table.columns[loop.index0] %}
+<td class="{{ column.kind }}" style="text-align: {{ column.align }}">{{ value | cell }}</td>
+{% endfor %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% if table.truncated %}
+<p>The first {{ table.rows | length }} rows.</p>
+{% endif %}
+</div>
+{% if table.interactive %}
+<script>document.getElementById({{ table.id | tojson }}).querySelector(".fair2-table-plain").remove();</script>
+{% endif %}
+</div>
