@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 import nbformat
 import pytest
@@ -348,3 +349,45 @@ def test_a_fresh_environment(tmp_path):
     assert report.ok
     assert report.install_seconds > 0
     assert report.dependencies_bytes > 10_000  # six
+
+
+@pytest.mark.skipif(
+    not os.environ.get("NOTEBOOK_RUNNER_FRESH_ENV"),
+    reason="creates an environment and installs packages: NOTEBOOK_RUNNER_FRESH_ENV=1",
+)
+def test_a_shell_pip_installs_into_the_notebook_environment(tmp_path):
+    # !pip runs in a shell: the environment's pip, not the first one (or none) on the runner's PATH
+    path = notebook(tmp_path, "!pip install --quiet six", "import six")
+    with notebook_runner.fresh_environment() as python:
+        report = notebook_runner.run(path, python=python)
+    assert report.ok, report.errors.runtime
+
+
+def test_a_notebook_environment_comes_first_on_the_path(tmp_path):
+    import venv
+
+    from notebook_runner.runner import _activated
+
+    venv.create(tmp_path / "venv", with_pip=False)
+    python = next(p for p in (tmp_path / "venv").glob("*/python*") if p.is_file())
+    runner_path = os.pathsep.join(["/usr/local/bin", "/usr/bin"])
+
+    variables = _activated(python, runner_path)
+
+    first, *rest = variables["PATH"].split(os.pathsep)
+    assert Path(first) == python.parent  # bin/ or Scripts/
+    assert rest == runner_path.split(os.pathsep)
+    assert Path(variables["VIRTUAL_ENV"]).resolve() == (tmp_path / "venv").resolve()
+
+
+def test_a_python_outside_a_virtual_environment_is_not_activated():
+    import sys
+
+    from notebook_runner.runner import _activated
+
+    base = sys._base_executable  # the Python the runner's own environment was made from
+    if not Path(base).is_file():
+        pytest.skip("no base Python to run")
+    variables = _activated(base, "")
+    assert "VIRTUAL_ENV" not in variables
+    assert variables["PATH"]  # its scripts folder
