@@ -3,7 +3,8 @@
     notebook-runner 10.71728/*/notebook-duckdb.ipynb --fresh-env --python 3.13 \\
         --report report.json --summary summary.md --max-download-mb 500
 
-The exit code is 1 when a notebook fails or goes over a budget, for CI.
+The exit code is 1 when a notebook fails or goes over a budget, for CI. The summary and the
+annotations are made in `summary`.
 """
 
 from __future__ import annotations
@@ -16,8 +17,10 @@ from pathlib import Path
 
 import nbformat
 
+from notebook_runner import summary
 from notebook_runner.environment import fresh_environment
-from notebook_runner.runner import Budget, Report, budget_checks, run
+from notebook_runner.runner import Budget, Report, run
+from notebook_runner.summary import result, size
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -62,7 +65,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--cwd", type=Path, help="working directory (default: the notebook's)")
     parser.add_argument("--report", type=Path, help="JSON report of every notebook")
-    parser.add_argument("--summary", type=Path, help="Markdown table (e.g. $GITHUB_STEP_SUMMARY)")
+    parser.add_argument(
+        "--summary",
+        type=Path,
+        help="Markdown summary: results, times, downloads, errors (e.g. $GITHUB_STEP_SUMMARY)",
+    )
+    parser.add_argument(
+        "--annotations",
+        action="store_true",
+        help="print a GitHub Actions error annotation per failing cell",
+    )
     parser.add_argument("--executed", type=Path, help="folder for the executed copies")
     for name, unit in (
         ("seconds", "s"),
@@ -119,8 +131,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.report:
         args.report.write_text(json.dumps([r.to_dict() for r in reports], indent=1) + "\n")
     if args.summary:
-        with args.summary.open("a") as f:
-            f.write(summary_table(reports))
+        with args.summary.open("a", encoding="utf-8") as f:
+            f.write(summary.markdown(reports))
+    if args.annotations:
+        for line in summary.annotations(reports):
+            print(line, flush=True)
     return 0 if all(r.ok for r in reports) else 1
 
 
@@ -128,36 +143,6 @@ def _ids(notebook: Path) -> set[str]:
     """The ids of the code cells of a notebook."""
     cells = nbformat.read(notebook, as_version=4).cells
     return {c.get("id") for c in cells if c.cell_type == "code" and c.get("id")}
-
-
-def size(n: int | None) -> str:
-    if n is None:
-        return "–"
-    for unit in ("B", "kB", "MB", "GB"):
-        if abs(n) < 1000 or unit == "GB":
-            return f"{n:,} B" if unit == "B" else f"{n:,.1f} {unit}"
-        n /= 1000
-
-
-def _result(report: Report) -> str:
-    results = []
-    runtime, over_budget = report.errors.runtime, report.errors.over_budget
-    if runtime:
-        # The first errors; the ones after a failure may be its consequences.
-        failed = ", ".join(f"{e.cell} ({e.name})" for e in runtime[:4])
-        more = f", and {len(runtime) - 4} more" if len(runtime) > 4 else ""
-        cells = "cell" if len(runtime) == 1 else "cells"
-        results.append(f"failed in {cells} {failed}{more}")
-    if over_budget:
-        # "time: 2.3 s > 1.0 s": the measured values, and the limits of the run's budget.
-        checks = budget_checks(report, Budget(**report.options["budget"]))
-        exceeded = [
-            f"{label}: {value:,.1f} {unit} > {limit:,.1f} {unit}"
-            for field, label, value, limit, unit in checks
-            if field in over_budget
-        ]
-        results.append("over budget: " + "; ".join(exceeded))
-    return "; ".join(results) or "ok"
 
 
 def summary_line(report: Report) -> str:
@@ -178,24 +163,7 @@ def summary_line(report: Report) -> str:
     if report.created or report.modified:
         written = len(report.created) + len(report.modified)
         parts.append(f"wrote {written} file{'s' if written != 1 else ''}")
-    return f"{report.notebook}: {_result(report)} ({', '.join(parts)})"
-
-
-def summary_table(reports: list[Report]) -> str:
-    rows = [
-        "| Notebook | Result | Time | Install | Peak memory | Downloaded | Dependencies |"
-        " Files written |",
-        "|---|---|---|---|---|---|---|---|",
-    ]
-    for r in reports:
-        files = ", ".join(f"`{f}`" for f in [*r.created, *r.modified][:5]) or "–"
-        rows.append(
-            f"| `{r.notebook}` | {_result(r)} | {r.seconds:.1f} s | {r.install_seconds:.1f} s"
-            f" | {size(r.peak_memory_bytes)}"
-            f" | {size(r.downloads.total_bytes) if r.downloads else '–'}"
-            f" | {size(r.dependencies_bytes)} | {files} |"
-        )
-    return "\n".join(rows) + "\n"
+    return f"{report.notebook}: {result(report)} ({', '.join(parts)})"
 
 
 if __name__ == "__main__":
