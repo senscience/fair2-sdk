@@ -93,11 +93,22 @@ missing file (tracebacks shortened):
 }
 ```
 
-The command prints one line per notebook, and `--summary` writes a Markdown table of them:
+The command prints one line per notebook:
 
 ```
 demo.ipynb: failed in cells 2 (IOException), 3 (NameError) (0.4 s, peak 146.4 MB, downloaded 0 B, skipped cells e7f8a9b0)
 ```
+
+`--summary <file>` appends a Markdown summary, for GitHub's job summaries (`$GITHUB_STEP_SUMMARY`)
+or comments, which fold its `<details>` blocks. For each notebook: the result, the totals (time,
+install, peak memory, downloads per host, dependencies installed, files written), the slowest
+cells, the time of every cell (folded), the failing cells with their errors and tracebacks (folded)
+and the cells failing after them, and the environment; with several notebooks, a table of them
+first. It is the Jinja template `templates/summary.md.j2`, rendered from the reports
+(`notebook_runner.summary.markdown(reports)` from Python).
+
+`--annotations` prints a GitHub Actions error annotation per failing cell, on the notebook file:
+the causes, not the cells failing after them, which may be their consequences.
 
 ## First visits
 
@@ -127,6 +138,31 @@ packages: for `senscience.f2na-3dct`, 86.2 MB instead of 1.3 MB with pip's cache
 run fails even if the notebook completes, so that CI notices a notebook getting heavier. The
 limits exceeded are listed by name in `errors.over_budget` (e.g. `["max_seconds"]`): their values
 are in `options.budget`, and the measured values in the report.
+
+## In GitHub Actions
+
+The notebooks repositories (one per environment) test a dataset's notebook with the
+`test-notebook` action of this repository, after checking themselves out:
+
+```yaml
+- uses: actions/checkout@v7
+- uses: senscience/fair2-sdk/.github/actions/test-notebook@<full commit SHA>
+  with:
+    doi: 10.71728/senscience.qs2f-h81p
+```
+
+It runs `<doi>/notebook.ipynb` in a fresh Python 3.13 environment and fails when a cell fails. The
+run can be read on its page, without the logs, success or not: the job summary of `--summary`, and
+the annotations of `--annotations` when cells fail. The report and the executed notebook go to an
+artifact.
+notebook-runner is installed from the action's own copy of this repository, so the commit it is
+used at is also the version of notebook-runner. By default (`branch-patch`), the notebook uses the
+checked-out `tools/patch_fair2.py` instead of the one it downloads from GitHub, to test a change to
+it before it is merged. Other inputs: `notebook`, `path`, `python-version`, `timeout`,
+`skip-cells`, `artifact-name` (see `.github/actions/test-notebook/action.yml`).
+
+The workflow *Try the test-notebook action* runs it on any notebook of a notebooks repository, to
+try a new version of the action before the notebooks repositories move to it.
 
 ## From Python
 

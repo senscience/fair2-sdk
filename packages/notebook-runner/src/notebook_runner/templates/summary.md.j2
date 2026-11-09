@@ -1,0 +1,98 @@
+{#- The summary of runs, in GitHub's Markdown (see summary.py). Texts go through the md filter
+    (escaped), the code filter inside backticks, and tracebacks through traceback in <pre>. -#}
+{% if reports | length > 1 %}
+| Notebook | Result | Time | Install | Peak memory | Downloaded | Dependencies |
+|---|---|---|---|---|---|---|
+{% for r in reports %}
+| `{{ r.notebook | code }}` | {{ result(r) | md }} | {{ r.seconds | duration }} | {{ r.install_seconds | duration }} | {{ r.peak_memory_bytes | size }} | {{ (r.downloads.total_bytes if r.downloads else none) | size }} | {{ r.dependencies_bytes | size }} |
+{% endfor %}
+
+{% endif %}
+{% for r in reports %}
+{% set failing = causes(r) %}
+{% set after = consequences(r) %}
+### {{ (r.title or r.notebook) | md }}
+
+`{{ r.notebook | code }}`
+
+{% if r.ok %}
+✅ **All {{ ran(r) | length }} cells ran**, without errors.
+{% else %}
+❌ **Failed**:
+{%- if failing %} {{ failing | length }} failing cell{{ "s" if failing | length > 1 else "" }}
+{%- if after %} ({{ after | length }} more failing after them){% endif %}
+{%- if r.errors.over_budget %};{% endif %}
+{%- endif %}
+{%- if r.errors.over_budget %} over budget: {{ exceeded(r) | join("; ") | md }}{% endif %}, of {{ ran(r) | length }} cells run.
+{% endif %}
+
+| | |
+|---|---|
+| **Time** | {{ r.seconds | duration }} |
+{% if r.install_seconds %}
+| **Install** | {{ r.install_seconds | duration }} (the rest: {{ (r.seconds - r.install_seconds) | duration }}) |
+{% endif %}
+| **Peak memory** | {{ r.peak_memory_bytes | size }} |
+{% if r.downloads %}
+| **Downloaded** | {{ r.downloads.total_bytes | size }}
+{%- if r.downloads.by_host %} ({% for host, n in r.downloads.by_host.items() %}{{ host | md }} {{ n | size }}{{ ", " if not loop.last else "" }}{% endfor %}){% endif %} |
+{% endif %}
+{% if r.dependencies_bytes is not none %}
+| **Dependencies installed** | {{ r.dependencies_bytes | size }} |
+{% endif %}
+{% if r.created or r.modified %}
+| **Files written** | {% for f in r.created + r.modified %}`{{ f | code }}`{{ ", " if not loop.last else "" }}{% endfor %} |
+{% endif %}
+{% if slowest(r) %}
+
+Slowest cells:
+
+{% for c in slowest(r) %}
+- cell {{ c.index }}{% if c.first_line %}: `{{ c.first_line | code(FIRST_LINE) }}`{% endif %}: {{ c.seconds | duration }}{{ " (install)" if c.install else "" }}
+{% endfor %}
+{% endif %}
+{% if r.cells %}
+
+<details><summary>Time per cell</summary>
+
+| Cell | First line | Time | Share | Result |
+|---:|---|---:|---:|---|
+{% for c in r.cells %}
+| {{ c.index }}{{ " 📦" if c.install else "" }} | {% if c.first_line %}`{{ c.first_line | code(FIRST_LINE) }}`{% endif %} | {{ c.seconds | duration }} | {% if c.seconds and r.seconds %}{{ "%.0f" | format(100 * c.seconds / r.seconds) }}%{% endif %} | {{ status(c, r) }} |
+{% endfor %}
+
+📦 installs packages.
+
+</details>
+{% endif %}
+{% for e in failing %}
+{% set c = cell(r, e.cell) %}
+
+**❌ cell {{ e.cell }}**{% if c and c.first_line %}: `{{ c.first_line | code(FIRST_LINE) }}`{% endif %}
+
+
+> {{ describe(e) | md }}
+{% if e.traceback.strip() %}
+
+<details><summary>Traceback</summary>
+
+<pre>{{ e | traceback }}</pre>
+
+</details>
+{% endif %}
+{% endfor %}
+{% if after %}
+
+Failing after an earlier failure (probably a consequence):
+
+{% for e in after %}
+- cell {{ e.cell }} (after cell {{ e.after_error }}): {{ describe(e) | md }}
+{% endfor %}
+{% endif %}
+{% set env = r.environment %}
+
+Environment: {{ [env.label, ("Python " ~ env.python) if env.python else none, env.platform, (env.cpus ~ " CPUs") if env.cpus else none, ((env.memory_bytes | size) ~ " of memory") if env.memory_bytes else none, ((env.packages | length) ~ " packages") if env.packages else none] | select | map("md") | join(" · ") }}
+{%- for tool, version in env.tools.items() %} · {{ tool | md }} {{ version | md }}{% endfor %}
+
+
+{% endfor %}

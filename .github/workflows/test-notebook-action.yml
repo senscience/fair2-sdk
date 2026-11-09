@@ -1,0 +1,48 @@
+# Tries the test-notebook action of this repository on a notebook of a notebooks repository, before
+# the notebooks repositories use it at a new commit. Started by hand: Actions > Try the test-notebook
+# action > Run workflow.
+name: Try the test-notebook action
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Notebooks repository"
+        default: senscience/notebooks
+        type: string
+      ref:
+        description: "Its branch, tag or commit"
+        default: main
+        type: string
+      doi:
+        description: "Dataset DOI, e.g. 10.71728/senscience.qs2f-h81p"
+        required: true
+        type: string
+      notebook:
+        description: "Notebook file in the dataset's folder"
+        default: notebook.ipynb
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ inputs.doi }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          path: notebooks
+          persist-credentials: false
+      - uses: ./.github/actions/test-notebook
+        with:
+          path: notebooks
+          doi: ${{ inputs.doi }}
+          notebook: ${{ inputs.notebook }}
