@@ -2,6 +2,8 @@
 # the notebooks repositories use it at a new commit. Started by hand: Actions > Try the test-notebook
 # action > Run workflow.
 name: Try the test-notebook action
+# The DOIs can be many: in the summary, not in the names of the run and the job
+run-name: Try the test-notebook action on ${{ inputs.repository }}@${{ inputs.ref }}
 
 on:
   workflow_dispatch:
@@ -32,7 +34,7 @@ permissions:
 
 jobs:
   test:
-    name: ${{ inputs.doi }}
+    name: Test the notebooks
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
