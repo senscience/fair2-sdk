@@ -328,7 +328,7 @@ def test_the_command(tmp_path, capsys):
     assert reports[1]["errors"]["runtime"][0]["name"] == "ZeroDivisionError"
     assert reports[1]["errors"]["over_budget"] == []
     table = (tmp_path / "s.md").read_text()
-    assert "| `" + str(good) + "` | ok |" in table
+    assert "| `" + str(good) + "` | ✅ ok |" in table
     assert "failed in cell 1 (ZeroDivisionError)" in table
     assert "good.ipynb: ok (" in capsys.readouterr().out
 

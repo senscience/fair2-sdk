@@ -1,18 +1,10 @@
 {#- The summary of runs, in GitHub's Markdown (see summary.py). Texts go through the md filter
-    (escaped), the code filter inside backticks, and tracebacks through traceback in <pre>. -#}
-{% if reports | length > 1 %}
-| Notebook | Result | Time | Install | Peak memory | Downloaded | Dependencies |
-|---|---|---|---|---|---|---|
-{% for r in reports %}
-| `{{ r.notebook | code }}` | {{ result(r) | md }} | {{ r.seconds | duration }} | {{ r.install_seconds | duration }} | {{ r.peak_memory_bytes | size }} | {{ (r.downloads.total_bytes if r.downloads else none) | size }} | {{ r.dependencies_bytes | size }} |
-{% endfor %}
-
-{% endif %}
-{% for r in reports %}
+    (escaped), the code filter inside backticks, and tracebacks through traceback in <pre>.
+    With several notebooks: the failed ones first (summary.py orders them), a table of them, and
+    the sections of the ones that ran fine folded. -#}
+{% macro section(r) %}
 {% set failing = causes(r) %}
 {% set after = consequences(r) %}
-### {{ (r.title or r.notebook) | md }}
-
 `{{ r.notebook | code }}`
 
 {% if r.ok %}
@@ -93,6 +85,28 @@ Failing after an earlier failure (probably a consequence):
 
 Environment: {{ [env.label, ("Python " ~ env.python) if env.python else none, env.platform, (env.cpus ~ " CPUs") if env.cpus else none, ((env.memory_bytes | size) ~ " of memory") if env.memory_bytes else none, ((env.packages | length) ~ " packages") if env.packages else none] | select | map("md") | join(" · ") }}
 {%- for tool, version in env.tools.items() %} · {{ tool | md }} {{ version | md }}{% endfor %}
+
+{% endmacro %}
+{% set several = reports | length > 1 %}
+{% if several %}
+| Notebook | Result | Time | Install | Peak memory | Downloaded | Dependencies |
+|---|---|---|---|---|---|---|
+{% for r in reports %}
+| `{{ label(r) | code }}` | {{ "✅" if r.ok else "❌" }} {{ result(r) | md }} | {{ r.seconds | duration }} | {{ r.install_seconds | duration }} | {{ r.peak_memory_bytes | size }} | {{ (r.downloads.total_bytes if r.downloads else none) | size }} | {{ r.dependencies_bytes | size }} |
+{% endfor %}
+
+{% endif %}
+{% for r in reports %}
+{% if several and r.ok %}
+<details><summary>✅ <code>{{ label(r) | md }}</code>: {{ (r.title or r.notebook) | md }} ({{ r.seconds | duration }})</summary>
+
+{{ section(r) }}
+</details>
+{% else %}
+### {{ (r.title or r.notebook) | md }}
+
+{{ section(r) }}
+{% endif %}
 
 
 {% endfor %}

@@ -15,13 +15,17 @@ on:
         default: main
         type: string
       doi:
-        description: "Dataset DOI, e.g. 10.71728/senscience.qs2f-h81p"
+        description: "Dataset DOI, e.g. 10.71728/senscience.qs2f-h81p, or several separated by spaces"
         required: true
         type: string
       notebook:
         description: "Notebook file in the dataset's folder"
         default: notebook.ipynb
         type: string
+      cache-dependencies:
+        description: "Keep pip's and uv's download caches from one run to the next"
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -46,3 +50,4 @@ jobs:
           path: notebooks
           doi: ${{ inputs.doi }}
           notebook: ${{ inputs.notebook }}
+          cache-dependencies: ${{ inputs.cache-dependencies }}

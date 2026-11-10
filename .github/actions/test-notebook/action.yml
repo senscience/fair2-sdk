@@ -1,6 +1,7 @@
-# Runs the notebook of a dataset from scratch with notebook-runner, as on a first visit: a new
-# Python environment with only ipykernel, where the notebook's install cell runs. For the notebooks
-# repositories (one per environment), checked out before:
+# Runs the notebooks of datasets from scratch with notebook-runner, as on a first visit: for each,
+# a new Python environment with only ipykernel, where the notebook's install cell runs. One after
+# the other, so that their measures don't interfere. For the notebooks repositories (one per
+# environment), checked out before:
 #
 #   - uses: actions/checkout@v7
 #   - uses: senscience/fair2-sdk/.github/actions/test-notebook@<full commit SHA>
@@ -9,71 +10,106 @@
 #
 # notebook-runner is installed from this action's own copy of fair2-sdk: the commit the action is
 # used at is also the version of notebook-runner.
-name: Test a FAIR² notebook
-description: Run the notebook of a dataset from scratch with notebook-runner, and keep its report.
+name: Test FAIR² notebooks
+description: Run the notebooks of datasets from scratch with notebook-runner, and keep their reports.
 
 inputs:
   doi:
-    description: "Dataset DOI, e.g. 10.71728/senscience.qs2f-h81p; its folder holds the notebook"
+    description: >-
+      Dataset DOI, e.g. 10.71728/senscience.qs2f-h81p, whose folder holds the notebook; or several,
+      separated by spaces, commas or new lines
     required: true
   notebook:
-    description: "Notebook file in the dataset's folder"
+    description: "Notebook file in each dataset's folder"
     default: notebook.ipynb
   path:
     description: "Where the notebooks repository is checked out, relative to the workspace"
     default: "."
   branch-patch:
     description: >-
-      "true" to use the checked-out tools/patch_fair2.py instead of the one the notebook downloads
+      "true" to use the checked-out tools/patch_fair2.py instead of the one the notebooks download
       from GitHub (a raw.githubusercontent.com URL), to test a change to it before it is merged
     default: "true"
   python-version:
-    description: "Python version of the notebook's fresh environment"
+    description: "Python version of the notebooks' fresh environments"
     default: "3.13"
   timeout:
     description: "Timeout per cell, in seconds"
     default: "600"
   skip-cells:
-    description: "Comma-separated ids of cells not to run (e.g. a widget needing a browser)"
+    description: >-
+      Comma-separated ids of cells not to run (e.g. a widget needing a browser); with a single DOI,
+      as cell ids are those of a notebook (with several, tag the cells skip-execution)
     default: ""
+  cache-dependencies:
+    description: >-
+      "true" to keep pip's and uv's download caches from one run to the next: the packages are then
+      not downloaded again, and the downloads and install times measured are not those of a first
+      visit. The data is never cached.
+    default: "false"
   artifact-name:
-    description: "Name of the artifact with the report and the executed notebook (unique in a run)"
+    description: "Name of the artifact with the reports and the executed notebooks (unique in a run)"
     default: notebook-run
 
 outputs:
   report:
-    description: "Path of the JSON report (in the runner's temporary folder)"
-    value: ${{ steps.notebook.outputs.report }}
+    description: "Path of the JSON report, one entry per notebook (in the runner's temporary folder)"
+    value: ${{ steps.notebooks.outputs.report }}
 
 runs:
   using: composite
   steps:
     - uses: astral-sh/setup-uv@v10.3.0
 
-    - name: Find the notebook
-      id: notebook
+    - name: Find the notebooks
+      id: notebooks
       shell: bash
       env:
-        DOI: ${{ inputs.doi }}
+        DOIS: ${{ inputs.doi }}
         NOTEBOOK: ${{ inputs.notebook }}
         REPOSITORY: ${{ inputs.path }}
+        SKIP_CELLS: ${{ inputs.skip-cells }}
       run: |
         # Inputs are only used through variables, after checking their form
-        if ! [[ "$DOI" =~ ^10\.[0-9]{4,9}/[A-Za-z0-9._-]+$ ]]; then
-          echo "::error::Not a DOI: $DOI"; exit 1
-        fi
         if ! [[ "$NOTEBOOK" =~ ^[A-Za-z0-9._-]+\.ipynb$ ]]; then
           echo "::error::Not a notebook file name: $NOTEBOOK"; exit 1
         fi
-        notebook="$REPOSITORY/$DOI/$NOTEBOOK"
-        if [ ! -f "$notebook" ]; then
-          echo "::error::No notebook at $notebook (is the notebooks repository checked out at '$REPOSITORY'?)"
-          exit 1
+        read -r -a dois <<< "$(tr ',\n' '  ' <<< "$DOIS")"
+        if [ ${#dois[@]} -eq 0 ]; then
+          echo "::error::No DOI given"; exit 1
+        fi
+        if [ ${#dois[@]} -gt 1 ] && [ -n "$SKIP_CELLS" ]; then
+          echo "::error::skip-cells is for a single DOI: tag the cells skip-execution instead"; exit 1
         fi
         out="$RUNNER_TEMP/notebook-run"
         mkdir -p "$out"
+        : > "$out/notebooks.txt"
+        missing=()
+        for doi in $(printf '%s\n' "${dois[@]}" | sort -u); do
+          if ! [[ "$doi" =~ ^10\.[0-9]{4,9}/[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::Not a DOI: $doi"; exit 1
+          fi
+          notebook="$REPOSITORY/$doi/$NOTEBOOK"
+          if [ -f "$notebook" ]; then
+            echo "$notebook" >> "$out/notebooks.txt"
+          else
+            missing+=("$doi")
+            echo "::warning::No notebook at $notebook"
+          fi
+        done
+        if [ ! -s "$out/notebooks.txt" ]; then
+          echo "::error::No notebook found (is the notebooks repository checked out at '$REPOSITORY'?)"
+          exit 1
+        fi
+        # Not a failure with several DOIs (e.g. a dataset without notebook), but in the summary
+        if [ ${#missing[@]} -gt 0 ]; then
+          {
+            echo "⚠️ **No \`$NOTEBOOK\` for ${#missing[@]} DOI(s)**, not run:"
+            printf -- '- `%s`\n' "${missing[@]}"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
         {
-          echo "notebook=$notebook"
           echo "out=$out"
           echo "report=$out/report.json"
         } >> "$GITHUB_OUTPUT"
@@ -82,41 +118,74 @@ runs:
       if: inputs.branch-patch == 'true'
       shell: bash
       env:
-        NOTEBOOK_PATH: ${{ steps.notebook.outputs.notebook }}
+        OUT: ${{ steps.notebooks.outputs.out }}
         REPOSITORY: ${{ inputs.path }}
       run: |
         patch="$(realpath "$REPOSITORY")/tools/patch_fair2.py"
         if [ ! -f "$patch" ]; then
-          echo "No tools/patch_fair2.py in the repository: the notebook keeps its own"; exit 0
+          echo "No tools/patch_fair2.py in the repository: the notebooks keep their own"; exit 0
         fi
-        # The checkout is thrown away after the job: the notebook can be changed in place. Whatever
+        # The checkout is thrown away after the job: the notebooks can be changed in place. Whatever
         # the repository and ref in the URL, as each environment has its own notebooks repository.
-        sed -E -i "s#https://raw\.githubusercontent\.com/[^\"' ]+/tools/patch_fair2\.py#file://$patch#g" "$NOTEBOOK_PATH"
-        echo "patch_fair2 from $patch: $(grep -c "file://$patch" "$NOTEBOOK_PATH" || true) line(s) of the notebook"
+        while read -r notebook; do
+          sed -E -i "s#https://raw\.githubusercontent\.com/[^\"' ]+/tools/patch_fair2\.py#file://$patch#g" "$notebook"
+          echo "$notebook: patch_fair2 from $patch in $(grep -c "file://$patch" "$notebook" || true) line(s)"
+        done < "$OUT/notebooks.txt"
+
+    - name: Restore the dependencies cache
+      id: cache
+      if: inputs.cache-dependencies == 'true'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/notebook-dependencies
+        # A new cache at each run (saved below), restored from the latest one
+        key: notebook-dependencies-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: notebook-dependencies-${{ runner.os }}-${{ runner.arch }}-py${{ inputs.python-version }}-
 
     - name: Install notebook-runner
       shell: bash
       run: uv tool install --python 3.12 "$GITHUB_ACTION_PATH/../../../packages/notebook-runner"
 
-    - name: Run the notebook
+    - name: Run the notebooks
       shell: bash
       env:
-        NOTEBOOK_PATH: ${{ steps.notebook.outputs.notebook }}
-        OUT: ${{ steps.notebook.outputs.out }}
+        OUT: ${{ steps.notebooks.outputs.out }}
         PYTHON_VERSION: ${{ inputs.python-version }}
         TIMEOUT: ${{ inputs.timeout }}
         SKIP_CELLS: ${{ inputs.skip-cells }}
+        CACHE: ${{ inputs.cache-dependencies }}
+        CACHE_KEY: ${{ steps.cache.outputs.cache-matched-key }}
       run: |
+        if [ "$CACHE" = "true" ]; then
+          # The kernels and the pip and uv they start inherit them
+          export PIP_CACHE_DIR="$RUNNER_TEMP/notebook-dependencies/pip"
+          export UV_CACHE_DIR="$RUNNER_TEMP/notebook-dependencies/uv"
+          if [ -n "$CACHE_KEY" ]; then
+            note="restored from an earlier run (\`$CACHE_KEY\`): the downloads and install times are not those of a first visit"
+          else
+            note="none to restore yet: downloaded as on a first visit"
+          fi
+          printf '📦 **Dependencies cache**: %s.\n\n' "$note" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        mapfile -t notebooks < "$OUT/notebooks.txt"
         args=(--fresh-env --python "$PYTHON_VERSION" --timeout "$TIMEOUT"
               --report "$OUT/report.json" --executed "$OUT/executed"
               --summary "$GITHUB_STEP_SUMMARY" --annotations)
         if [ -n "$SKIP_CELLS" ]; then args+=(--skip-cells "$SKIP_CELLS"); fi
-        notebook-runner "${args[@]}" "$NOTEBOOK_PATH"
+        notebook-runner "${args[@]}" "${notebooks[@]}"
 
-    - name: Keep the report and the executed notebook
-      if: always() && steps.notebook.outputs.out != ''
+    - name: Save the dependencies cache
+      # Also when notebooks fail: the packages downloaded are still valid
+      if: always() && inputs.cache-dependencies == 'true' && steps.cache.outcome == 'success'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/notebook-dependencies
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Keep the reports and the executed notebooks
+      if: always() && steps.notebooks.outputs.out != ''
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ steps.notebook.outputs.out }}
+        path: ${{ steps.notebooks.outputs.out }}
         if-no-files-found: ignore

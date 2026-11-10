@@ -4,8 +4,9 @@
 The summary is the Jinja template `templates/summary.md.j2`: for each notebook, the result, the
 totals (time, install, peak memory, downloads per host, dependencies, files written), the slowest
 cells, the time of every cell (folded), the failing cells with their errors and tracebacks
-(folded), and the environment; with several notebooks, a table of them first. It is written for
-GitHub's Markdown (job summaries, comments), which folds `<details>` blocks.
+(folded), and the environment. With several notebooks: the failed ones first, a table of them, and
+the sections of the ones that ran fine folded. It is written for GitHub's Markdown (job summaries,
+comments), which folds `<details>` blocks.
 """
 
 from __future__ import annotations
@@ -27,8 +28,11 @@ TRACEBACK_LINES = 40
 
 
 def markdown(reports: list[Report]) -> str:
-    """The summary of the runs."""
-    return _template().render(reports=reports)
+    """The summary of the runs: the failed ones first, otherwise in their order."""
+    labels = _labels(reports)
+    return _template().render(
+        reports=sorted(reports, key=lambda r: r.ok), label=lambda r: labels[id(r)]
+    )
 
 
 def annotations(reports: list[Report]) -> list[str]:
@@ -100,6 +104,17 @@ def duration(seconds: float | None) -> str:
         return f"{seconds:.1f} s"
     minutes, rest = divmod(round(seconds), 60)
     return f"{minutes} min {rest:02d} s"
+
+
+def _labels(reports: list[Report]) -> dict[int, str]:
+    """A short name per notebook, for the table of several: its path, without the file name when
+    they all have the same one ("10.71728/senscience.qs2f-h81p" for a notebook.ipynb in each
+    dataset's folder)."""
+    paths = [os.path.normpath(r.notebook) for r in reports]
+    names = {os.path.basename(p) for p in paths}
+    if len(reports) > 1 and len(names) == 1:
+        paths = [os.path.dirname(p) or p for p in paths]
+    return {id(r): p for r, p in zip(reports, paths, strict=True)}
 
 
 def _ran(report: Report) -> list[Cell]:
