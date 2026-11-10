@@ -76,11 +76,37 @@ def test_several_notebooks_start_with_a_table(tmp_path):
     bad = notebook_runner.run(notebook(tmp_path, "1 / 0", name="bad.ipynb"))
     text = summary.markdown([good, bad])
     assert text.startswith("| Notebook | Result |")
-    assert f"| `{good.notebook}` | ok |" in text
-    assert f"| `{bad.notebook}` | failed in cell 1 (ZeroDivisionError) |" in text
-    # Each notebook's section, apart
-    assert text.count("### A notebook") == 2
-    assert "\n\n### A notebook" in text
+    # The failed one first, in the table and the sections
+    table = text.split("\n\n")[0]
+    assert table.index(bad.notebook) < table.index(good.notebook)
+    assert f"| `{bad.notebook}` | ❌ failed in cell 1 (ZeroDivisionError) |" in table
+    assert f"| `{good.notebook}` | ✅ ok |" in table
+    assert text.index("### A notebook") < text.index("<details><summary>✅")
+    # The failed one in full, the one that ran fine folded
+    assert text.count("### A notebook") == 1
+    assert f"<details><summary>✅ <code>{good.notebook}</code>: A notebook (" in text
+    assert "✅ **All 1 cells ran**" in text
+    # Both sections complete, with their environment
+    assert text.count("Environment: ") == 2
+
+
+def test_several_notebooks_with_the_same_file_name_are_named_by_their_folder(tmp_path):
+    reports = []
+    for folder in ("a", "b"):
+        (tmp_path / folder).mkdir()
+        reports.append(notebook_runner.run(notebook(tmp_path / folder, "print(1)")))
+    text = summary.markdown(reports)
+    assert f"| `{tmp_path / 'a'}` | ✅ ok |" in text
+    assert f"<code>{tmp_path / 'b'}</code>" in text
+    # The full path is still in each section
+    assert f"`{tmp_path / 'a' / 'notebook.ipynb'}`" in text
+
+
+def test_a_single_notebook_is_not_folded(tmp_path):
+    report = notebook_runner.run(notebook(tmp_path, "print(1)"))
+    text = summary.markdown([report])
+    assert text.startswith("### A notebook")
+    assert "<details><summary>✅" not in text
 
 
 def test_the_command_prints_annotations(tmp_path, capsys):

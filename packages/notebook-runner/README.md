@@ -103,8 +103,9 @@ demo.ipynb: failed in cells 2 (IOException), 3 (NameError) (0.4 s, peak 146.4 MB
 or comments, which fold its `<details>` blocks. For each notebook: the result, the totals (time,
 install, peak memory, downloads per host, dependencies installed, files written), the slowest
 cells, the time of every cell (folded), the failing cells with their errors and tracebacks (folded)
-and the cells failing after them, and the environment; with several notebooks, a table of them
-first. It is the Jinja template `templates/summary.md.j2`, rendered from the reports
+and the cells failing after them, and the environment. With several notebooks: the failed ones
+first, a table of them (named by their folder when they all have the same file name, e.g.
+`10.71728/senscience.qs2f-h81p`), and the sections of the ones that ran fine folded. It is the Jinja template `templates/summary.md.j2`, rendered from the reports
 (`notebook_runner.summary.markdown(reports)` from Python).
 
 `--annotations` prints a GitHub Actions error annotation per failing cell, on the notebook file:
@@ -155,11 +156,24 @@ It runs `<doi>/notebook.ipynb` in a fresh Python 3.13 environment and fails when
 run can be read on its page, without the logs, success or not: the job summary of `--summary`, and
 the annotations of `--annotations` when cells fail. The report and the executed notebook go to an
 artifact.
+
+`doi` also takes several DOIs (separated by spaces, commas or new lines): their notebooks run one
+after the other, each in its own fresh environment, so that their measures don't interfere, and the
+summary starts with a table of them. A DOI without the notebook is a warning, listed in the
+summary, rather than a failure (unless no notebook is found at all). `skip-cells` is then not
+available, as cell ids are per notebook: tag the cells `skip-execution` instead.
+
+`cache-dependencies: true` keeps pip's and uv's download caches from one run to the next (with
+`actions/cache`, a new cache saved at each run): the packages aren't downloaded again, so the
+downloads and install times measured are no longer those of a first visit, which the summary says.
+The data is never cached. GitHub removes caches unused for 7 days: with weekly runs, the cache may
+be gone by the next one.
 notebook-runner is installed from the action's own copy of this repository, so the commit it is
 used at is also the version of notebook-runner. By default (`branch-patch`), the notebook uses the
 checked-out `tools/patch_fair2.py` instead of the one it downloads from GitHub, to test a change to
 it before it is merged. Other inputs: `notebook`, `path`, `python-version`, `timeout`,
-`skip-cells`, `artifact-name` (see `.github/actions/test-notebook/action.yml`).
+`skip-cells`, `cache-dependencies`, `artifact-name` (see
+`.github/actions/test-notebook/action.yml`).
 
 The workflow *Try the test-notebook action* runs it on any notebook of a notebooks repository, to
 try a new version of the action before the notebooks repositories move to it.
