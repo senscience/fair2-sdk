@@ -34,7 +34,7 @@ from jupyter_client.manager import AsyncKernelManager
 from nbclient import NotebookClient
 from nbclient.exceptions import CellExecutionError, CellTimeoutError, DeadKernelError
 
-from notebook_runner import measure
+from notebook_runner import measure, zmq_wakeup
 from notebook_runner.environment import site_packages_size
 
 # The tag of the cells not to run (nbclient's and nbmake's convention): always honoured.
@@ -297,6 +297,8 @@ def _execute(
     title = _title(nb)
     cells, plan = _plan(nb, set(skip_cells), {SKIP_TAG, *skip_tags}, skip_install)
 
+    # Until jupyter_client has it: cells with an ipywidgets Output would wait for the timeout.
+    zmq_wakeup.apply()
     with tempfile.TemporaryDirectory(prefix="notebook-runner-kernel-") as kernels:
         client = NotebookClient(
             nb,
@@ -332,7 +334,7 @@ def _execute(
                         if time.perf_counter() - cell_start >= timeout:
                             # Interrupted at the timeout, but the cell ended without an error:
                             # it caught the interrupt, or nbclient was still waiting for the
-                            # kernel's reply (py3Dmol in an ipywidgets Output, without a browser).
+                            # kernel's reply (as in jupyter/nbclient#312, see zmq_wakeup).
                             error = Error(
                                 index, "Timeout", f"interrupted after {timeout} s", "", previous
                             )

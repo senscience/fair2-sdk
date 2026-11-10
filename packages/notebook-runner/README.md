@@ -200,6 +200,15 @@ still listed in the report.
 report = notebook_runner.run(generated, python=python, budget=budget, environment="sandbox")
 ```
 
+## Widgets
+
+Cells that display in an ipywidgets `Output` (e.g. a py3Dmol view) run without a browser: nbclient
+plays the frontend's part. A bug of jupyter_client made such a cell wait for the whole timeout
+after it had finished ([jupyter/nbclient#312](https://github.com/jupyter/nbclient/issues/312));
+notebook-runner applies its fix, [jupyter/jupyter_client#1145](https://github.com/jupyter/jupyter_client/pull/1145),
+in its own process until a release of jupyter_client has it (`zmq_wakeup`). The notebooks and
+their kernels are not changed.
+
 ## Untrusted notebooks
 
 notebook-runner measures notebooks, it doesn't isolate them: a notebook runs with the rights of the

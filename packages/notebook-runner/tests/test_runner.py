@@ -191,6 +191,41 @@ def test_a_timeout_is_reported_even_if_the_cell_ends_without_error(tmp_path):
     assert not report.ok
 
 
+def test_a_display_in_an_output_widget_does_not_wait_for_the_timeout(tmp_path):
+    # jupyter/nbclient#312 (zmq_wakeup): without the fix, nbclient waited for the kernel's reply
+    # until the timeout, every time, for a py3Dmol view displayed in an Output (hw56-vj34).
+    atom = "ATOM      1  CA  ALA A   1      11.104   6.134  -6.504  1.00  0.00           C"
+    cell = (
+        "import ipywidgets as widgets\n"
+        "import py3Dmol\n"
+        "from IPython.display import display\n"
+        "output = widgets.Output()\n"
+        "display(output)\n"
+        "view = py3Dmol.view(width=400, height=300)\n"
+        f"view.addModel({atom!r}, 'pdb')\n"
+        "view.zoomTo()\n"
+        "with output:\n"
+        "    display(view)"
+    )
+    report = notebook_runner.run(notebook(tmp_path, cell), timeout=10)
+    assert report.ok, report.errors
+    assert report.seconds < 5
+
+
+def test_the_jupyter_client_fix_is_applied_once():
+    from jupyter_client import session
+
+    from notebook_runner import zmq_wakeup
+
+    zmq_wakeup.apply()
+    send = session.Session.send
+    zmq_wakeup.apply()
+    assert session.Session.send is send
+    # Unless jupyter_client has it: then the patch is no longer needed (and can be removed).
+    if not hasattr(session, "_wake_async_socket"):
+        assert send._wakes_async_socket
+
+
 def test_skipping_cells_by_id_and_tag(tmp_path):
     path = notebook(
         tmp_path,
