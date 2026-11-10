@@ -22,7 +22,13 @@ dependencies = [
 [project.optional-dependencies]
 # Running notebooks in the environment of notebook-runner itself (no `python=`): its kernel.
 local = ["ipykernel>=7.4.0,<8"]
-test = ["notebook-runner[local]", "pytest>=9.1.1,<10"]
+# ipywidgets and py3Dmol: a cell displaying in an Output widget (zmq_wakeup).
+test = [
+  "notebook-runner[local]",
+  "pytest>=9.1.1,<10",
+  "ipywidgets>=8.1.9,<9",
+  "py3dmol>=2.4.2,<3",
+]
 
 [project.scripts]
 notebook-runner = "notebook_runner.cli:main"
