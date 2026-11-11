@@ -25,6 +25,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import warnings
 from pathlib import Path
 
 import nbformat
@@ -33,6 +34,7 @@ from jupyter_client.kernelspec import KernelSpecManager
 from jupyter_client.manager import AsyncKernelManager
 from nbclient import NotebookClient
 from nbclient.exceptions import CellExecutionError, CellTimeoutError, DeadKernelError
+from nbformat.warnings import MissingIDFieldWarning
 
 from notebook_runner import measure, zmq_wakeup
 from notebook_runner.environment import site_packages_size
@@ -213,7 +215,7 @@ def run(
         path = Path(notebook)
         content = path.read_bytes()
         name, folder = str(path), path.resolve().parent
-    nb = nbformat.reads(content.decode("utf-8"), as_version=4)
+    nb = reads(content.decode("utf-8"))
     if name == IN_MEMORY:
         # nbformat's serialization of it: the same notebook has the same hash, whether it is a
         # NotebookNode or a plain dict.
@@ -561,6 +563,15 @@ def _transport(kernels: Path) -> dict[str, str]:
     if os.name == "nt":
         return {}
     return {"transport": "ipc", "ip": str(kernels / "kernel")}
+
+
+def reads(text: str) -> nbformat.NotebookNode:
+    """A notebook, as nbformat v4. In a notebook of nbformat 4.5 or later, nbformat gives the
+    cells without an id a random one, with a warning per cell (MissingIDFieldWarning): not for
+    the user of notebook-runner to act on."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", MissingIDFieldWarning)
+        return nbformat.reads(text, as_version=4)
 
 
 def _run_hidden(client: NotebookClient, nb, source: str) -> str:

@@ -15,11 +15,9 @@ import json
 import sys
 from pathlib import Path
 
-import nbformat
-
 from notebook_runner import summary
 from notebook_runner.environment import fresh_environment
-from notebook_runner.runner import Budget, Report, run
+from notebook_runner.runner import Budget, Report, reads, run
 from notebook_runner.summary import result, size
 
 
@@ -141,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def _ids(notebook: Path) -> set[str]:
     """The ids of the code cells of a notebook."""
-    cells = nbformat.read(notebook, as_version=4).cells
+    cells = reads(notebook.read_text(encoding="utf-8")).cells
     return {c.get("id") for c in cells if c.cell_type == "code" and c.get("id")}
 
 
