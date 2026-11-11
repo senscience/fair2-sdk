@@ -547,7 +547,8 @@ def _kernel_manager(python: str | Path | None, kernels: Path) -> AsyncKernelMana
     spec.mkdir(parents=True)
     argv = [str(python), "-m", "ipykernel_launcher", "-f", "{connection_file}"]
     (spec / "kernel.json").write_text(
-        json.dumps({"argv": argv, "display_name": "notebook-runner", "language": "python"})
+        json.dumps({"argv": argv, "display_name": "notebook-runner", "language": "python"}),
+        encoding="utf-8",
     )
     return AsyncKernelManager(
         kernel_name="notebook-runner",

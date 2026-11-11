@@ -256,10 +256,10 @@ def test_cells_without_ids_in_a_recent_notebook_are_read_without_warnings(tmp_pa
     import warnings
 
     path = notebook(tmp_path, "print(1)", "print(2)")
-    nb = json.loads(path.read_text())
+    nb = json.loads(path.read_text(encoding="utf-8"))
     for cell in nb["cells"]:
         del cell["id"]
-    path.write_text(json.dumps(nb))
+    path.write_text(json.dumps(nb), encoding="utf-8")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         report = notebook_runner.run(path)
@@ -427,11 +427,11 @@ def test_the_command(tmp_path, capsys):
         ]
     )
     assert code == 1  # a notebook failed
-    reports = json.loads((tmp_path / "r.json").read_text())
+    reports = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))
     assert [r["ok"] for r in reports] == [True, False]
     assert reports[1]["errors"]["runtime"][0]["name"] == "ZeroDivisionError"
     assert reports[1]["errors"]["over_budget"] == []
-    table = (tmp_path / "s.md").read_text()
+    table = (tmp_path / "s.md").read_text(encoding="utf-8")
     assert "| `" + str(good) + "` | ✅ ok |" in table
     assert "failed in cell 1 (ZeroDivisionError)" in table
     assert "good.ipynb: ok (" in capsys.readouterr().out

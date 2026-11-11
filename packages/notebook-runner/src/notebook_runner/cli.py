@@ -127,7 +127,8 @@ def main(argv: list[str] | None = None) -> int:
         print(summary_line(report), flush=True)
 
     if args.report:
-        args.report.write_text(json.dumps([r.to_dict() for r in reports], indent=1) + "\n")
+        report = json.dumps([r.to_dict() for r in reports], indent=1) + "\n"
+        args.report.write_text(report, encoding="utf-8")
     if args.summary:
         with args.summary.open("a", encoding="utf-8") as f:
             f.write(summary.markdown(reports))
