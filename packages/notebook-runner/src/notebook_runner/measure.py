@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import contextlib
 import dataclasses
 import os
 import threading
@@ -70,12 +71,25 @@ class CountingProxy:
         return Downloads(sum(by_host.values()), by_host)
 
     def close(self) -> None:
-        def stop():
-            self._server.close()
-            self._loop.stop()
-
-        self._loop.call_soon_threadsafe(stop)
+        """Stops the proxy. Its open connections (kept alive by pip, requests...) are closed
+        first, while its loop still runs: left pending, they would be destroyed with the loop
+        later, during another notebook, with "Event loop is closed" and "Task was destroyed but
+        it is pending" messages."""
+        if self._loop.is_closed():
+            return
+        with contextlib.suppress(TimeoutError):
+            asyncio.run_coroutine_threadsafe(self._shutdown(), self._loop).result(timeout=5)
+        self._loop.call_soon_threadsafe(self._loop.stop)
         self._thread.join(timeout=5)
+        if not self._thread.is_alive():
+            self._loop.close()
+
+    async def _shutdown(self) -> None:
+        self._server.close()
+        connections = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        for task in connections:
+            task.cancel()
+        await asyncio.gather(*connections, return_exceptions=True)
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
