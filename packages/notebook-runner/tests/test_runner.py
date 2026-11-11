@@ -191,8 +191,12 @@ def test_stop_on_error(tmp_path):
     assert report.cells[2].skip_reason == "not run: cell 2 failed"
 
 
+# Short sleeps: on Windows, the interrupt only acts between them, not during a blocking call.
+INTERRUPTIBLE = "import time\nwhile True:\n    time.sleep(0.1)"
+
+
 def test_a_cell_that_times_out_is_interrupted(tmp_path):
-    path = notebook(tmp_path, "import time\ntime.sleep(30)", "print('next')")
+    path = notebook(tmp_path, INTERRUPTIBLE, "print('next')")
     report = notebook_runner.run(path, timeout=2)
     assert [(e.cell, e.name) for e in report.errors.runtime] == [(1, "Timeout")]
     assert report.cells[0].seconds < 20
@@ -201,10 +205,25 @@ def test_a_cell_that_times_out_is_interrupted(tmp_path):
 
 def test_a_timeout_is_reported_even_if_the_cell_ends_without_error(tmp_path):
     # The interrupt is caught, so the cell ends normally, but after the timeout.
-    cell = "import time\ntry:\n    time.sleep(30)\nexcept KeyboardInterrupt:\n    pass"
+    cell = "try:\n" + "\n".join("    " + line for line in INTERRUPTIBLE.splitlines())
+    cell += "\nexcept KeyboardInterrupt:\n    pass"
     report = notebook_runner.run(notebook(tmp_path, cell), timeout=2)
     assert [(e.cell, e.name) for e in report.errors.runtime] == [(1, "Timeout")]
     assert not report.ok
+
+
+def test_a_cell_that_the_interrupt_does_not_stop_stops_the_notebook(tmp_path, monkeypatch):
+    # As time.sleep on Windows: here a cell ignoring the interrupt, on every system.
+    monkeypatch.setattr(notebook_runner.runner, "GRACE", 2)
+    cell = "import signal, time\nsignal.signal(signal.SIGINT, signal.SIG_IGN)\ntime.sleep(60)"
+    report = notebook_runner.run(notebook(tmp_path, cell, "print('next')"), timeout=2)
+    assert [(e.cell, e.name, e.message) for e in report.errors.runtime] == [
+        (1, "Timeout", "interrupted after 2 s, still running 2 s later")
+    ]
+    assert report.cells[0].seconds < 20  # not the 60 s of the cell
+    assert report.cells[1].skipped
+    assert report.cells[1].skip_reason == "not run: cell 1 could not be interrupted"
+    assert report.environment.packages is None  # not asked to the stopped kernel
 
 
 def test_a_display_in_an_output_widget_does_not_wait_for_the_timeout(tmp_path):

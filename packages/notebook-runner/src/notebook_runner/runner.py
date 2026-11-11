@@ -12,6 +12,7 @@ The notebook file is never modified.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import dataclasses
 import datetime
@@ -32,6 +33,7 @@ import nbformat
 import psutil
 from jupyter_client.kernelspec import KernelSpecManager
 from jupyter_client.manager import AsyncKernelManager
+from jupyter_core.utils import ensure_async
 from nbclient import NotebookClient
 from nbclient.exceptions import CellExecutionError, CellTimeoutError, DeadKernelError
 from nbformat.warnings import MissingIDFieldWarning
@@ -41,6 +43,10 @@ from notebook_runner.environment import site_packages_size
 
 # The tag of the cells not to run (nbclient's and nbmake's convention): always honoured.
 SKIP_TAG = "skip-execution"
+# Seconds a cell has to stop after it is interrupted at the timeout. After that, the kernel is
+# stopped, and the next cells are not run: on Windows, the interrupt can't stop a blocking call
+# (time.sleep, a network read, C code), and a stuck cell would otherwise never end.
+GRACE = 10
 # Cells that install packages: `%pip install`, `!pip install`, or from Python
 # (`subprocess.run([... 'pip', 'install'...`).
 INSTALL = re.compile(r"\bpip\b['\"]?\s*,?\s*['\"]?install\b|\buv\b\s+pip\s+install\b")
@@ -302,7 +308,7 @@ def _execute(
     # Until jupyter_client has it: cells with an ipywidgets Output would wait for the timeout.
     zmq_wakeup.apply()
     with tempfile.TemporaryDirectory(prefix="notebook-runner-kernel-") as kernels:
-        client = NotebookClient(
+        client = _Client(
             nb,
             km=_kernel_manager(python, Path(kernels)),
             timeout=timeout,
@@ -313,7 +319,7 @@ def _execute(
         before_files = _files(cwd)
         before_packages = site_packages_size(python) if python else None
         peak = _PeakMemory()
-        errors, downloads, dead = [], None, False
+        errors, downloads, dead, stuck = [], None, False, False
         # The kernel, and the processes it starts (pip, curl), go through the counting proxy.
         proxy = measure.CountingProxy() if count_downloads else None
         kernel_env = {"env": {**os.environ, **env, **(proxy.environment() if proxy else {})}}
@@ -355,6 +361,11 @@ def _execute(
                         else:
                             traceback = ANSI.sub("", str(e))[-3000:]
                             error = Error(index, e.ename, e.evalue, traceback, previous)
+                    except _NotInterrupted:
+                        message = f"interrupted after {timeout} s, still running {GRACE} s later"
+                        error = Error(index, "Timeout", message, "", previous)
+                        stuck = True
+                        client.shutdown_kernel = "immediate"  # it would not answer a request
                     except CellTimeoutError as e:
                         error = Error(index, "Timeout", str(e).splitlines()[0], "", previous)
                     except DeadKernelError as e:
@@ -367,15 +378,22 @@ def _execute(
                     )
                     if error:
                         errors.append(error)
-                    if dead or (error and stop_on_error):
-                        why = "the kernel died" if dead else f"cell {index} failed"
+                    if dead or stuck or (error and stop_on_error):
+                        why = (
+                            "the kernel died"
+                            if dead
+                            else f"cell {index} could not be interrupted"
+                            if stuck
+                            else f"cell {index} failed"
+                        )
                         for rest, _ in plan[position + 1 :]:
                             cells[rest] = dataclasses.replace(
                                 cells[rest], skipped=True, skip_reason=f"not run: {why}"
                             )
                         break
                 seconds = time.perf_counter() - start
-                packages = None if dead else _json_output(_run_hidden(client, nb, PACKAGES))
+                stopped = dead or stuck
+                packages = None if stopped else _json_output(_run_hidden(client, nb, PACKAGES))
         finally:
             if proxy:
                 downloads = proxy.downloads()
@@ -530,6 +548,24 @@ _ENVIRONMENT = (
     "import json, sys, sysconfig; "
     "print(json.dumps([sys.prefix, sys.base_prefix, sysconfig.get_path('scripts')]))"
 )
+
+
+class _NotInterrupted(Exception):
+    """A cell still running GRACE seconds after its interrupt."""
+
+
+class _Client(NotebookClient):
+    """nbclient's client, which gives up on a cell that its interrupt doesn't stop."""
+
+    async def _async_handle_timeout(self, timeout, cell=None):
+        # nbclient interrupts the kernel, and would only call this again after another timeout.
+        reply = await super()._async_handle_timeout(timeout, cell)
+        deadline = time.monotonic() + GRACE
+        while time.monotonic() < deadline:
+            if await ensure_async(self.kc.shell_channel.msg_ready()):  # the cell's reply
+                return reply
+            await asyncio.sleep(0.1)
+        raise _NotInterrupted()
 
 
 def _kernel_manager(python: str | Path | None, kernels: Path) -> AsyncKernelManager:
