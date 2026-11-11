@@ -71,6 +71,30 @@ jobs:
       - name: Test notebook-runner
         run: /tmp/py311/bin/python -m pytest packages/notebook-runner/tests
 
+  notebook-runner-systems:
+    # The notebooks are run on Linux in CI, and by their readers on Windows and macOS as well:
+    # notebook-runner on each, with the tests of fresh environments (NOTEBOOK_RUNNER_FRESH_ENV,
+    # skipped elsewhere as they create environments and install packages).
+    name: Tests of notebook-runner (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      NOTEBOOK_RUNNER_FRESH_ENV: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.13"
+      - name: Install the workspace
+        run: uv sync --locked
+      - name: Test notebook-runner
+        run: uv run pytest packages/notebook-runner/tests
+
   widgets:
     name: Widgets (JavaScript)
     runs-on: ubuntu-latest
