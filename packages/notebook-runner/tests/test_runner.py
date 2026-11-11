@@ -250,6 +250,24 @@ def test_the_kernel_communicates_through_unix_sockets(tmp_path, capfd):
     assert "without encryption" not in capfd.readouterr().err
 
 
+def test_cells_without_ids_in_a_recent_notebook_are_read_without_warnings(tmp_path):
+    # nbformat 4.5 notebooks whose cells have no id (bt07-sboc, k7f3-9xqm): nbformat gives them
+    # random ones, with a MissingIDFieldWarning per cell.
+    import warnings
+
+    path = notebook(tmp_path, "print(1)", "print(2)")
+    nb = json.loads(path.read_text())
+    for cell in nb["cells"]:
+        del cell["id"]
+    path.write_text(json.dumps(nb))
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        report = notebook_runner.run(path)
+        assert cli.main([str(path)]) == 0
+    assert report.ok
+    assert [w.category.__name__ for w in caught if "MissingID" in w.category.__name__] == []
+
+
 def test_skipping_cells_by_id_and_tag(tmp_path):
     path = notebook(
         tmp_path,
