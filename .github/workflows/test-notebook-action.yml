@@ -1,6 +1,6 @@
 # Tries the test-notebook action of this repository on a notebook of a notebooks repository, before
-# the notebooks repositories use it at a new commit. Started by hand: Actions > Try the test-notebook
-# action > Run workflow.
+# the notebooks repositories use it at a new commit, on Linux, macOS, Windows or all three. Started
+# by hand: Actions > Try the test-notebook action > Run workflow.
 name: Try the test-notebook action
 # The DOIs can be many: in the summary, not in the names of the run and the job
 run-name: Try the test-notebook action on ${{ inputs.repository }}@${{ inputs.ref }}
@@ -28,15 +28,29 @@ on:
         description: "Keep pip's and uv's download caches from one run to the next"
         default: false
         type: boolean
+      os:
+        description: "System of the runner"
+        default: ubuntu-latest
+        type: choice
+        options:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+          - all
 
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Test the notebooks
-    runs-on: ubuntu-latest
+    name: Test the notebooks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    strategy:
+      # Each system to the end, to see all their failures at once.
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.os == 'all' && '["ubuntu-latest", "macos-latest", "windows-latest"]' || format('["{0}"]', inputs.os)) }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -53,3 +67,5 @@ jobs:
           doi: ${{ inputs.doi }}
           notebook: ${{ inputs.notebook }}
           cache-dependencies: ${{ inputs.cache-dependencies }}
+          # One artifact per system: their names must differ within a run.
+          artifact-name: notebook-run-${{ matrix.os }}
