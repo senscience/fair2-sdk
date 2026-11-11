@@ -321,7 +321,10 @@ def _execute(
             kernel_env["env"].update(_activated(python, kernel_env["env"].get("PATH", "")))
         start = time.perf_counter()
         try:
-            with client.setup_kernel(**kernel_env):
+            # cleanup_kc: shut the kernel down at the end. nbclient only does it by default for a
+            # kernel manager of its own: with ours, each notebook's kernel stayed alive, with its
+            # memory, until notebook-runner exited.
+            with client.setup_kernel(cleanup_kc=True, **kernel_env):
                 peak.watch(client.km.provisioner.process.pid)
                 kernel = _json_output(_run_hidden(client, nb, KERNEL_INFO)) or {}
                 start = time.perf_counter()
