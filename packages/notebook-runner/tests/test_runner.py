@@ -242,6 +242,14 @@ def test_the_jupyter_client_fix_is_applied_once():
         assert send._wakes_async_socket
 
 
+@pytest.mark.skipif(os.name == "nt", reason="no Unix sockets: TCP on Windows")
+def test_the_kernel_communicates_through_unix_sockets(tmp_path, capfd):
+    report = notebook_runner.run(notebook(tmp_path, "print(1)"))
+    assert report.ok
+    # ipykernel's warning about TCP: "Kernel is running over TCP without encryption"
+    assert "without encryption" not in capfd.readouterr().err
+
+
 def test_skipping_cells_by_id_and_tag(tmp_path):
     path = notebook(
         tmp_path,
