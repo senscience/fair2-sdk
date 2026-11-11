@@ -320,6 +320,33 @@ def test_the_proxy_counts_what_it_forwards_per_host(served):
     assert list(downloads.by_host) == ["127.0.0.1"]
 
 
+def test_closing_the_proxy_leaves_no_connection_pending(served, caplog):
+    # Connections left open (kept alive by pip, requests...) were destroyed later with the
+    # proxy's loop, during the next notebook: "Event loop is closed", "Task was destroyed".
+    import gc
+    import socket
+    import sys
+    from urllib.parse import urlsplit
+
+    from notebook_runner.measure import CountingProxy
+
+    unraisable = []
+    hook, sys.unraisablehook = sys.unraisablehook, unraisable.append
+    try:
+        proxy = CountingProxy()
+        client = socket.create_connection(("127.0.0.1", proxy.port))
+        client.sendall(f"CONNECT {urlsplit(served).netloc} HTTP/1.1\r\n\r\n".encode())
+        assert client.recv(100).startswith(b"HTTP/1.1 200")  # a tunnel, left open
+        proxy.close()
+        del proxy
+        gc.collect()
+        client.close()
+    finally:
+        sys.unraisablehook = hook
+    assert [u.exc_value for u in unraisable] == []
+    assert not [r for r in caplog.records if "Task was destroyed" in r.getMessage()]
+
+
 def test_downloads_of_the_kernel_and_of_its_shell_commands(tmp_path, served):
     import shutil
 
