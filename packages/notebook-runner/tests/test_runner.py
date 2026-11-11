@@ -114,6 +114,22 @@ def test_no_cache(tmp_path):
     assert notebook_runner.run(path).options["no_cache"] is False
 
 
+def test_the_kernel_is_shut_down_after_the_run(tmp_path):
+    import time
+
+    import psutil
+
+    executed = tmp_path / "executed.ipynb"
+    path = notebook(tmp_path, "import os\nprint(os.getpid())")
+    report = notebook_runner.run(path, executed=executed)
+    assert report.ok
+    pid = int(nbformat.read(executed, as_version=4).cells[1].outputs[0]["text"])
+    deadline = time.monotonic() + 10
+    while psutil.pid_exists(pid) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    assert not psutil.pid_exists(pid) or psutil.Process(pid).status() == psutil.STATUS_ZOMBIE
+
+
 def test_a_notebook_that_completes(tmp_path):
     path = notebook(
         tmp_path,
