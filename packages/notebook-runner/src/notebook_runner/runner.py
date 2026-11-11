@@ -540,7 +540,7 @@ def _kernel_manager(python: str | Path | None, kernels: Path) -> AsyncKernelMana
                 " environment (python=..., or --fresh-env)"
             )
         # Async, as nbclient's own: with a blocking one, its timeouts don't apply.
-        return AsyncKernelManager(kernel_name="python3")
+        return AsyncKernelManager(kernel_name="python3", **_transport(kernels))
     spec = kernels / "kernels" / "notebook-runner"
     spec.mkdir(parents=True)
     argv = [str(python), "-m", "ipykernel_launcher", "-f", "{connection_file}"]
@@ -550,7 +550,17 @@ def _kernel_manager(python: str | Path | None, kernels: Path) -> AsyncKernelMana
     return AsyncKernelManager(
         kernel_name="notebook-runner",
         kernel_spec_manager=KernelSpecManager(kernel_dirs=[str(spec.parent)]),
+        **_transport(kernels),
     )
+
+
+def _transport(kernels: Path) -> dict[str, str]:
+    """How the runner and the kernel communicate: Unix sockets in the kernel's temporary folder
+    (IPC), rather than TCP ports on 127.0.0.1, which ipykernel warns about ("Kernel is running
+    over TCP without encryption"). TCP on Windows, which has no Unix sockets."""
+    if os.name == "nt":
+        return {}
+    return {"transport": "ipc", "ip": str(kernels / "kernel")}
 
 
 def _run_hidden(client: NotebookClient, nb, source: str) -> str:
