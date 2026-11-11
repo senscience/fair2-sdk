@@ -120,17 +120,28 @@ runs:
       env:
         OUT: ${{ steps.notebooks.outputs.out }}
         REPOSITORY: ${{ inputs.path }}
+      # In Python rather than with sed: the same on Linux, macOS (BSD sed) and Windows, where the
+      # file URL of D:\a\... is file:///D:/a/...
       run: |
-        patch="$(realpath "$REPOSITORY")/tools/patch_fair2.py"
-        if [ ! -f "$patch" ]; then
-          echo "No tools/patch_fair2.py in the repository: the notebooks keep their own"; exit 0
-        fi
+        uv run --no-project --python 3.12 python - "$REPOSITORY" "$OUT/notebooks.txt" <<'EOF'
+        import re
+        import sys
+        from pathlib import Path
+
+        repository, listing = Path(sys.argv[1]), Path(sys.argv[2])
+        patch = (repository / "tools" / "patch_fair2.py").resolve()
+        if not patch.is_file():
+            sys.exit(print("No tools/patch_fair2.py in the repository: the notebooks keep their own"))
         # The checkout is thrown away after the job: the notebooks can be changed in place. Whatever
         # the repository and ref in the URL, as each environment has its own notebooks repository.
-        while read -r notebook; do
-          sed -E -i "s#https://raw\.githubusercontent\.com/[^\"' ]+/tools/patch_fair2\.py#file://$patch#g" "$notebook"
-          echo "$notebook: patch_fair2 from $patch in $(grep -c "file://$patch" "$notebook" || true) line(s)"
-        done < "$OUT/notebooks.txt"
+        url = re.compile(r"https://raw\.githubusercontent\.com/[^\"' ]+/tools/patch_fair2\.py")
+        for notebook in listing.read_text(encoding="utf-8").splitlines():
+            with open(notebook, encoding="utf-8", newline="") as f:  # its line endings kept
+                text, count = url.subn(patch.as_uri(), f.read())
+            with open(notebook, "w", encoding="utf-8", newline="") as f:
+                f.write(text)
+            print(f"{notebook}: patch_fair2 from {patch.as_uri()} in {count} place(s)")
+        EOF
 
     - name: Restore the dependencies cache
       id: cache
@@ -167,7 +178,9 @@ runs:
           fi
           printf '📦 **Dependencies cache**: %s.\n\n' "$note" >> "$GITHUB_STEP_SUMMARY"
         fi
-        mapfile -t notebooks < "$OUT/notebooks.txt"
+        # Not mapfile: bash 3.2 on macOS
+        notebooks=()
+        while IFS= read -r notebook; do notebooks+=("$notebook"); done < "$OUT/notebooks.txt"
         args=(--fresh-env --python "$PYTHON_VERSION" --timeout "$TIMEOUT"
               --report "$OUT/report.json" --executed "$OUT/executed"
               --summary "$GITHUB_STEP_SUMMARY" --annotations)
