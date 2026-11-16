@@ -65,6 +65,11 @@ runs:
   using: composite
   steps:
     - uses: astral-sh/setup-uv@v10.3.0
+      with:
+        # Not setup-uv's cache, keyed on the dependency files of the checked-out project: the
+        # notebooks repositories have none (a warning at each run), and installing notebook-runner
+        # takes seconds. The notebooks' dependencies have their own cache (cache-dependencies).
+        enable-cache: "false"
 
     - name: Find the notebooks
       id: notebooks
