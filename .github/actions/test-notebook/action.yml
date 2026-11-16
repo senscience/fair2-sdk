@@ -34,8 +34,8 @@ inputs:
     description: "Python version of the notebooks' fresh environments"
     default: "3.13"
   timeout:
-    description: "Timeout per cell, in seconds"
-    default: "600"
+    description: "Timeout per cell, in seconds: a cell still running is interrupted and fails"
+    default: "300"
   max-seconds:
     description: >-
       Longest time a notebook may take, in seconds, its install cells included: a notebook taking
