@@ -152,10 +152,11 @@ The notebooks repositories (one per environment) test a dataset's notebook with 
     doi: 10.71728/senscience.qs2f-h81p
 ```
 
-It runs `<doi>/notebook.ipynb` in a fresh Python 3.13 environment and fails when a cell fails. The
-run can be read on its page, without the logs, success or not: the job summary of `--summary`, and
-the annotations of `--annotations` when cells fail. The report and the executed notebook go to an
-artifact.
+It runs `<doi>/notebook.ipynb` in a fresh Python 3.13 environment and fails when a cell fails, or
+when the notebook takes more than 300 s, its install cells included (`max-seconds`, empty for no
+limit). The run can be read on its page, without the logs, success or not: the job summary of
+`--summary`, and the annotations of `--annotations` when cells fail. The report and the executed
+notebook go to an artifact.
 
 `doi` also takes several DOIs (separated by spaces, commas or new lines): their notebooks run one
 after the other, each in its own fresh environment, so that their measures don't interfere, and the
@@ -172,7 +173,7 @@ notebook-runner is installed from the action's own copy of this repository, so t
 used at is also the version of notebook-runner. By default (`branch-patch`), the notebook uses the
 checked-out `tools/patch_fair2.py` instead of the one it downloads from GitHub, to test a change to
 it before it is merged. Other inputs: `notebook`, `path`, `python-version`, `timeout`,
-`skip-cells`, `cache-dependencies`, `artifact-name` (see
+`max-seconds`, `skip-cells`, `cache-dependencies`, `artifact-name` (see
 `.github/actions/test-notebook/action.yml`).
 
 The workflow *Try the test-notebook action* runs it on any notebook of a notebooks repository, to

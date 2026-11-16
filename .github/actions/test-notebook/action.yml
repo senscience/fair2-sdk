@@ -36,6 +36,11 @@ inputs:
   timeout:
     description: "Timeout per cell, in seconds"
     default: "600"
+  max-seconds:
+    description: >-
+      Longest time a notebook may take, in seconds, its install cells included: a notebook taking
+      longer fails (empty for no limit)
+    default: "300"
   skip-cells:
     description: >-
       Comma-separated ids of cells not to run (e.g. a widget needing a browser); with a single DOI,
@@ -163,6 +168,7 @@ runs:
         OUT: ${{ steps.notebooks.outputs.out }}
         PYTHON_VERSION: ${{ inputs.python-version }}
         TIMEOUT: ${{ inputs.timeout }}
+        MAX_SECONDS: ${{ inputs.max-seconds }}
         SKIP_CELLS: ${{ inputs.skip-cells }}
         CACHE: ${{ inputs.cache-dependencies }}
         CACHE_KEY: ${{ steps.cache.outputs.cache-matched-key }}
@@ -184,6 +190,7 @@ runs:
         args=(--fresh-env --python "$PYTHON_VERSION" --timeout "$TIMEOUT"
               --report "$OUT/report.json" --executed "$OUT/executed"
               --summary "$GITHUB_STEP_SUMMARY" --annotations)
+        if [ -n "$MAX_SECONDS" ]; then args+=(--max-seconds "$MAX_SECONDS"); fi
         if [ -n "$SKIP_CELLS" ]; then args+=(--skip-cells "$SKIP_CELLS"); fi
         notebook-runner "${args[@]}" "${notebooks[@]}"
 
