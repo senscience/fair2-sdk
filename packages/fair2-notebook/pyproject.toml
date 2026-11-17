@@ -17,6 +17,10 @@ dependencies = [
   "jinja2>=3.1.6,<4",
   "markupsafe>=3.0.3,<4",
   "mlcroissant>=1.1.1,<1.2",
+  # Inputs: the dataset's files as DataFrames. pandas 2 as well as 3: the figures' code may need
+  # either, the notebook pins it.
+  "pandas>=2.2,<4",
+  "pyarrow>=17,<27",
 ]
 
 [project.optional-dependencies]
