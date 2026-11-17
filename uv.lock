@@ -601,6 +601,8 @@ dependencies = [
     { name = "jinja2" },
     { name = "markupsafe" },
     { name = "mlcroissant" },
+    { name = "pandas" },
+    { name = "pyarrow" },
 ]
 
 [package.optional-dependencies]
@@ -615,6 +617,8 @@ requires-dist = [
     { name = "markdown-it-py", marker = "extra == 'test'", specifier = ">=4.0.0,<5" },
     { name = "markupsafe", specifier = ">=3.0.3,<4" },
     { name = "mlcroissant", specifier = ">=1.1.1,<1.2" },
+    { name = "pandas", specifier = ">=2.2,<4" },
+    { name = "pyarrow", specifier = ">=17,<27" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.1.1,<10" },
 ]
 provides-extras = ["test"]
