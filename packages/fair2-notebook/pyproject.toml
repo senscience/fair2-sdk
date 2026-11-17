@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fair2-notebook"
+version = "0.1.0"
+description = "Helpers and widgets for notebooks on FAIR² datasets, light enough for any notebook to install."
+readme = "README.md"
+# The notebooks' Python versions, which they choose.
+requires-python = ">=3.11"
+# Notebooks install it, pinned, next to the code of their figures: few dependencies, and
+# no bounds on mlcroissant's own dependencies (pandas...), which the notebook's figures need at
+# their own versions. Upper bounds: the next minor version for mlcroissant, the next major one for
+# the others.
+dependencies = [
+  "jinja2>=3.1.6,<4",
+  "markupsafe>=3.0.3,<4",
+  "mlcroissant>=1.1.1,<1.2",
+]
+
+[project.optional-dependencies]
+# markdown-it-py: renders the top of the card as CommonMark with HTML, as a Markdown cell
+# shows it, to test what readers see.
+test = ["pytest>=9.1.1,<10", "markdown-it-py>=4.0.0,<5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The template of the card, its stylesheets and its script.
+[tool.setuptools.package-data]
+fair2_notebook = ["templates/*.j2", "assets/*.css", "assets/*.js"]
+
+# The workspace's Ruff settings, for the oldest Python this package supports.
+[tool.ruff]
+extend = "../../pyproject.toml"
+target-version = "py311"
