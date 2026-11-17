@@ -51,8 +51,32 @@ jobs:
         run: uv run pytest packages/croissant-duckdb/tests
       - name: Test fair2
         run: uv run pytest packages/fair2/tests
+      - name: Test fair2-notebook
+        run: uv run pytest packages/fair2-notebook/tests
       - name: Test notebook-runner
         run: uv run pytest packages/notebook-runner/tests
+
+  fair2-notebook-py311:
+    # fair2-notebook supports Python 3.11 (the notebooks choose their Python), below the
+    # workspace's 3.12: tested on its own, installed outside the workspace, with pandas 2 as well
+    # (the figures of the notebooks may need it).
+    name: Tests of fair2-notebook (Python 3.11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.0
+      - name: Install fair2-notebook
+        run: |
+          uv venv --python 3.11 /tmp/py311
+          uv pip install --python /tmp/py311/bin/python "./packages/fair2-notebook[test]"
+      - name: Test fair2-notebook
+        run: /tmp/py311/bin/python -m pytest packages/fair2-notebook/tests
+      - name: Test fair2-notebook with pandas 2
+        run: |
+          uv pip install --python /tmp/py311/bin/python "pandas<3"
+          /tmp/py311/bin/python -m pytest packages/fair2-notebook/tests
 
   notebook-runner-py311:
     # notebook-runner supports Python 3.11 (the version of the backend), below the workspace's 3.12:

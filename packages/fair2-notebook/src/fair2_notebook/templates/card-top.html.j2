@@ -1,0 +1,94 @@
+{#- The top of the dataset card (fair2_notebook.html.render_top), for a Markdown cell: its name,
+    an introduction, badges, description, details and responsible use. Its styles are inline only
+    (no <style>, no script): JupyterLab keeps inline styles in Markdown cells, whether the notebook
+    is trusted or not. The colours are the theme's light ones.
+
+    Autoescaped: every text of the metadata is escaped. Only `intro`, from the caller, is inserted
+    as it is. The rendering has no blank line: in a Markdown cell, one would end the HTML. -#}
+{%- set c = colors -%}
+
+{%- macro link(l) -%}
+  {%- if l.url and l.url.startswith(("https://", "http://")) -%}
+    <a href="{{ l.url }}" target="_blank" style="color: {{ c.link }}; text-decoration: none;">{{ l.text }}</a>
+  {%- else -%}
+    {{ l.text }}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- A link, a text, or several (the authors): comma-separated. -#}
+{%- macro value(v) -%}
+  {%- if v is link -%}{{ link(v) }}
+  {%- elif v is string -%}{{ lines(v) }}
+  {%- else -%}{% for item in v %}{{ value(item) }}{% if not loop.last %}, {% endif %}{% endfor %}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- A text's lines, as line breaks (blank lines included: none in the rendering). -#}
+{%- macro lines(text) -%}
+  {%- for line in text.split("\n") if line.strip() -%}{{ line.strip() }}{% if not loop.last %}<br>{% endif %}{%- endfor -%}
+{%- endmacro -%}
+
+{#- Paragraphs separated by blank lines. -#}
+{%- macro paragraphs(text) -%}
+  {%- for p in text.split("\n\n") if p.strip() -%}
+    <p style="margin: 0 0 0.6em; line-height: 1.5;">{{ lines(p) }}</p>
+  {%- endfor -%}
+{%- endmacro -%}
+
+{#- A small header above each part: "AUTHORS". -#}
+{%- macro label(text) -%}
+<div style="font-size: 0.72em; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: {{ c.muted }}; margin-bottom: 0.2em;">{{ text }}</div>
+{%- endmacro -%}
+
+{#- A text in a box with a coloured bar: the keywords, the citation. -#}
+{%- macro boxed() -%}
+<div style="background: {{ c.highlight }}; border-left: 3px solid {{ c.link }}; border-radius: 4px; padding: 0.6em 0.9em; font-size: 0.9em; line-height: 1.5;">{{ caller() }}</div>
+{%- endmacro -%}
+
+<div style="background: {{ c.background }}; color: {{ c.foreground }}; border: 1px solid {{ c.border }}; border-radius: 16px; padding: 1.25em 1.5em; margin: 0.5em 0;{% if font %} font-family: {{ font }};{% endif %}">
+<h1 style="margin: 0 0 0.4em; color: {{ c.foreground }};">{{ card.name }}</h1>
+{%- if intro %}
+<p style="margin: 0 0 0.8em; font-style: italic; color: {{ c.muted }};">{{ intro }}</p>
+{%- endif %}
+{%- if badges %}
+<div style="display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0 0 1em;">
+{%- for prefix, v in badges -%}
+<span style="background: {{ c.badge }}; color: {{ c['badge-foreground'] }}; border-radius: 9999px; padding: 0.15em 0.75em; font-size: 0.85em;">{{ prefix }}{{ value(v) }}</span>
+{%- endfor -%}
+</div>
+{%- endif %}
+{%- if card.description %}
+{{ label("Description") }}
+{{- paragraphs(card.description) }}
+{%- endif %}
+{%- if card.authors or card.data_article or card.keywords %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.9em 1.5em; margin: 1em 0;">
+{%- if card.authors %}<div style="grid-column: 1 / 3;">{{ label("Authors") }}<div>{{ value(card.authors) }}</div></div>{% endif %}
+{%- if card.data_article %}<div style="grid-column: 1 / 3;">{{ label("Data article") }}<div>{{ link(card.data_article) }}</div></div>{% endif %}
+{%- if card.keywords %}<div style="grid-column: 1 / 3;">{{ label("Keywords") }}{% call boxed() %}{{ card.keywords | join(", ") }}{% endcall %}</div>{% endif %}
+</div>
+{%- endif %}
+{%- if card.cite_as %}
+{{ label("Cite as") }}
+<div style="margin: 0 0 1em;">{% call boxed() %}{{ lines(card.cite_as) }}{% endcall %}</div>
+{%- endif %}
+{#- After the citation: where and when the data comes from, and who funded it. #}
+{%- if card.spatial_coverage or card.temporal_coverage or card.funders %}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.9em 1.5em; margin: 0 0 1em;">
+{%- for name, items in [("Spatial coverage", card.spatial_coverage), ("Temporal coverage", card.temporal_coverage), ("Funding", card.funders)] if items -%}
+<div>{{ label(name) }}<div>{{ lines(items | join("; ")) }}</div></div>
+{%- endfor -%}
+</div>
+{%- endif %}
+{%- if card.responsible_use %}
+{{ label("Responsible use") }}
+{#- Only its content is folded: the header stays, the summary lists its sections. #}
+<details style="margin: 0;"><summary style="cursor: pointer; color: {{ c.link }}; font-size: 0.9em;">{{ card.responsible_use | map(attribute=0) | join(", ") }}</summary>
+{%- for name, items in card.responsible_use %}
+<p style="margin: 0.8em 0 0.2em; font-weight: 600;">{{ name }}</p>
+{%- if items | length == 1 %}{{ paragraphs(items[0]) }}
+{%- else %}<ul style="margin: 0; padding-left: 1.2em;">{% for i in items %}<li style="line-height: 1.5;">{{ lines(i) }}</li>{% endfor %}</ul>{% endif %}
+{%- endfor %}
+</details>
+{%- endif %}
+</div>
