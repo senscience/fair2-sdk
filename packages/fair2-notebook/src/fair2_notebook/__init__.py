@@ -15,10 +15,15 @@ And the inputs of the figures' code: the dataset's files, read with pandas, and 
 
 inputs = Inputs(dataset)
 sense_input = inputs.read
+
+And a figure wider than the notebook, shown smaller (`fit`):
+
+fit(result)
 """
 
 from fair2_notebook.card import DatasetCard, card, structure
+from fair2_notebook.fit import fit
 from fair2_notebook.inputs import Inputs
 from fair2_notebook.themes import FRONTIERS, Theme
 
-__all__ = ["FRONTIERS", "DatasetCard", "Inputs", "Theme", "card", "structure"]
+__all__ = ["FRONTIERS", "DatasetCard", "Inputs", "Theme", "card", "fit", "structure"]
