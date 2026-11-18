@@ -608,6 +608,7 @@ dependencies = [
 [package.optional-dependencies]
 test = [
     { name = "markdown-it-py" },
+    { name = "plotly" },
     { name = "pytest" },
 ]
 
@@ -618,6 +619,7 @@ requires-dist = [
     { name = "markupsafe", specifier = ">=3.0.3,<4" },
     { name = "mlcroissant", specifier = ">=1.1.1,<1.2" },
     { name = "pandas", specifier = ">=2.2,<4" },
+    { name = "plotly", marker = "extra == 'test'", specifier = ">=5.24,<8" },
     { name = "pyarrow", specifier = ">=17,<27" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=9.1.1,<10" },
 ]

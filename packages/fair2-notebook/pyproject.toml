@@ -26,7 +26,8 @@ dependencies = [
 [project.optional-dependencies]
 # markdown-it-py: renders the top of the card as CommonMark with HTML, as a Markdown cell
 # shows it, to test what readers see.
-test = ["pytest>=9.1.1,<10", "markdown-it-py>=4.0.0,<5"]
+# plotly: the figures `fit` shrinks, which the notebooks' code makes (not a dependency of fit).
+test = ["pytest>=9.1.1,<10", "markdown-it-py>=4.0.0,<5", "plotly>=5.24,<8"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
