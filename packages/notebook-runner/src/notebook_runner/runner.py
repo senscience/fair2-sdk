@@ -157,6 +157,8 @@ class Environment:
 @dataclasses.dataclass(frozen=True)
 class Report:
     notebook: str
+    """The notebook's path as given, with forward slashes on every system (Windows too), or
+    `<in memory>` for a notebook given as an object."""
     title: str | None
     """The notebook's first Markdown heading."""
     sha256: str
@@ -220,7 +222,8 @@ def run(
     else:
         path = Path(notebook)
         content = path.read_bytes()
-        name, folder = str(path), path.resolve().parent
+        # With forward slashes on every system: reports compared across systems name it alike
+        name, folder = path.as_posix(), path.resolve().parent
     nb = reads(content.decode("utf-8"))
     if name == IN_MEMORY:
         # nbformat's serialization of it: the same notebook has the same hash, whether it is a

@@ -31,7 +31,8 @@ def test_the_report_says_which_notebook_ran_and_how(tmp_path):
 
     path = notebook(tmp_path, "print(1)")
     report = notebook_runner.run(path, timeout=60, skip_tags={"slow"}, environment="the tests")
-    assert report.notebook == str(path)
+    # Its path with forward slashes, Windows too: the same on every system
+    assert report.notebook == path.as_posix() and "\\" not in report.notebook
     assert report.title == "A notebook"  # its first heading
     assert report.sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
     assert report.started_at.endswith("+00:00")
@@ -448,10 +449,12 @@ def test_the_command(tmp_path, capsys):
     assert code == 1  # a notebook failed
     reports = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))
     assert [r["ok"] for r in reports] == [True, False]
+    # Named with forward slashes, in the reports and the summary, on every system
+    assert [r["notebook"] for r in reports] == [good.as_posix(), bad.as_posix()]
     assert reports[1]["errors"]["runtime"][0]["name"] == "ZeroDivisionError"
     assert reports[1]["errors"]["over_budget"] == []
     table = (tmp_path / "s.md").read_text(encoding="utf-8")
-    assert "| `" + str(good) + "` | ✅ ok |" in table
+    assert "| `" + good.as_posix() + "` | ✅ ok |" in table
     assert "failed in cell 1 (ZeroDivisionError)" in table
     assert "good.ipynb: ok (" in capsys.readouterr().out
 

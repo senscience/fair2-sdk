@@ -96,10 +96,11 @@ def test_several_notebooks_with_the_same_file_name_are_named_by_their_folder(tmp
         (tmp_path / folder).mkdir()
         reports.append(notebook_runner.run(notebook(tmp_path / folder, "print(1)")))
     text = summary.markdown(reports)
-    assert f"| `{tmp_path / 'a'}` | ✅ ok |" in text
-    assert f"<code>{tmp_path / 'b'}</code>" in text
+    # The paths with forward slashes, Windows too, as in the reports
+    assert f"| `{(tmp_path / 'a').as_posix()}` | ✅ ok |" in text
+    assert f"<code>{(tmp_path / 'b').as_posix()}</code>" in text
     # The full path is still in each section
-    assert f"`{tmp_path / 'a' / 'notebook.ipynb'}`" in text
+    assert f"`{(tmp_path / 'a' / 'notebook.ipynb').as_posix()}`" in text
 
 
 def test_a_single_notebook_is_not_folded(tmp_path):
