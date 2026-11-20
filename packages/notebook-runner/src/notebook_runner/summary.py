@@ -14,6 +14,7 @@ from __future__ import annotations
 import functools
 import html
 import os
+import posixpath
 
 import jinja2
 
@@ -109,11 +110,11 @@ def duration(seconds: float | None) -> str:
 def _labels(reports: list[Report]) -> dict[int, str]:
     """A short name per notebook, for the table of several: its path, without the file name when
     they all have the same one ("10.71728/senscience.qs2f-h81p" for a notebook.ipynb in each
-    dataset's folder)."""
-    paths = [os.path.normpath(r.notebook) for r in reports]
-    names = {os.path.basename(p) for p in paths}
+    dataset's folder). The report's path has forward slashes on every system: so have these."""
+    paths = [posixpath.normpath(r.notebook) for r in reports]
+    names = {posixpath.basename(p) for p in paths}
     if len(reports) > 1 and len(names) == 1:
-        paths = [os.path.dirname(p) or p for p in paths]
+        paths = [posixpath.dirname(p) or p for p in paths]
     return {id(r): p for r, p in zip(reports, paths, strict=True)}
 
 

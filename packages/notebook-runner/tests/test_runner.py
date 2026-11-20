@@ -449,10 +449,12 @@ def test_the_command(tmp_path, capsys):
     assert code == 1  # a notebook failed
     reports = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))
     assert [r["ok"] for r in reports] == [True, False]
+    # Named with forward slashes, in the reports and the summary, on every system
+    assert [r["notebook"] for r in reports] == [good.as_posix(), bad.as_posix()]
     assert reports[1]["errors"]["runtime"][0]["name"] == "ZeroDivisionError"
     assert reports[1]["errors"]["over_budget"] == []
     table = (tmp_path / "s.md").read_text(encoding="utf-8")
-    assert "| `" + str(good) + "` | ✅ ok |" in table
+    assert "| `" + good.as_posix() + "` | ✅ ok |" in table
     assert "failed in cell 1 (ZeroDivisionError)" in table
     assert "good.ipynb: ok (" in capsys.readouterr().out
 
