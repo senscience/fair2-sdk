@@ -31,7 +31,8 @@ def test_the_report_says_which_notebook_ran_and_how(tmp_path):
 
     path = notebook(tmp_path, "print(1)")
     report = notebook_runner.run(path, timeout=60, skip_tags={"slow"}, environment="the tests")
-    assert report.notebook == str(path)
+    # Its path with forward slashes, Windows too: the same on every system
+    assert report.notebook == path.as_posix() and "\\" not in report.notebook
     assert report.title == "A notebook"  # its first heading
     assert report.sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
     assert report.started_at.endswith("+00:00")
