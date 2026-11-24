@@ -184,16 +184,17 @@ runs:
         # a third of the install and removal times. "0" is not a mistake: pip reads the variable
         # as the value of its compile option, so PIP_NO_COMPILE=0 is --no-compile, and =1 compiles.
         export PIP_NO_COMPILE=0
+        # On Windows, the environments on D: (RUNNER_TEMP), not in the temp folder on C:, the
+        # system disk, much slower with many small files: making, installing into and removing an
+        # environment took half the time on D:. The cache is on D: too, and uv links packages from
+        # it only within a drive. Linux and macOS have one disk for all of it.
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          export TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
+        fi
         if [ "$CACHE" = "true" ]; then
           # The kernels and the pip and uv they start inherit them
           export PIP_CACHE_DIR="$RUNNER_TEMP/notebook-dependencies/pip"
           export UV_CACHE_DIR="$RUNNER_TEMP/notebook-dependencies/uv"
-          # On Windows, RUNNER_TEMP is on D: and the temp folder, where notebook-runner makes the
-          # environments, on C:. uv links packages from its cache only within a drive: across
-          # drives, it copies every file. The environments go next to the cache, on D:.
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            export TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
-          fi
           if [ -n "$CACHE_KEY" ]; then
             note="restored from an earlier run (\`$CACHE_KEY\`): the downloads and install times are not those of a first visit"
           else
