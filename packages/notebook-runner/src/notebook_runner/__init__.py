@@ -15,13 +15,23 @@ Or the `notebook-runner` command (`notebook_runner.cli`).
 
 from notebook_runner.environment import fresh_environment
 from notebook_runner.measure import Downloads
-from notebook_runner.runner import Budget, Cell, Environment, Error, Errors, Report, run
+from notebook_runner.runner import (
+    Budget,
+    Cell,
+    Environment,
+    EnvironmentSeconds,
+    Error,
+    Errors,
+    Report,
+    run,
+)
 
 __all__ = [
     "Budget",
     "Cell",
     "Downloads",
     "Environment",
+    "EnvironmentSeconds",
     "Error",
     "Errors",
     "Report",

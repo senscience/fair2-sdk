@@ -155,6 +155,17 @@ class Environment:
 
 
 @dataclasses.dataclass(frozen=True)
+class EnvironmentSeconds:
+    """How long a fresh environment (`fresh_environment()`, `--fresh-env`) took to make, before
+    the notebook ran, and to remove, after. Not part of the notebook's time."""
+
+    create: float
+    """The virtual environment, with ipykernel."""
+    remove: float
+    """Its folder deleted: every package the notebook installed."""
+
+
+@dataclasses.dataclass(frozen=True)
 class Report:
     notebook: str
     """The notebook's path as given, with forward slashes on every system (Windows too), or
@@ -183,6 +194,8 @@ class Report:
     """Files created or changed in the notebook's folder (its working directory)."""
     errors: Errors
     cells: list[Cell]
+    environment_seconds: EnvironmentSeconds | None = None
+    """With a fresh environment, from the command: how long it took to make and to remove."""
 
     @property
     def ok(self) -> bool:

@@ -11,13 +11,15 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import dataclasses
 import json
 import sys
+import time
 from pathlib import Path
 
 from notebook_runner import summary
 from notebook_runner.environment import fresh_environment
-from notebook_runner.runner import Budget, Report, reads, run
+from notebook_runner.runner import Budget, EnvironmentSeconds, Report, reads, run
 from notebook_runner.summary import result, size
 
 
@@ -100,7 +102,10 @@ def main(argv: list[str] | None = None) -> int:
         environment = (
             fresh_environment(args.python) if args.fresh_env else contextlib.nullcontext(None)
         )
+        # The environment's making and removal, timed around the run: not the notebook's time
+        started = time.perf_counter()
         with environment as python:
+            made = time.perf_counter()
             executed = None
             if args.executed:
                 executed = args.executed / f"{notebook.resolve().parent.name}-{notebook.stem}.ipynb"
@@ -123,6 +128,12 @@ def main(argv: list[str] | None = None) -> int:
                     else "the environment of notebook-runner"
                 ),
             )
+            ran = time.perf_counter()
+        if args.fresh_env:
+            seconds = EnvironmentSeconds(
+                create=round(made - started, 2), remove=round(time.perf_counter() - ran, 2)
+            )
+            report = dataclasses.replace(report, environment_seconds=seconds)
         reports.append(report)
         print(summary_line(report), flush=True)
 
@@ -156,6 +167,9 @@ def summary_line(report: Report) -> str:
         )
     if report.dependencies_bytes is not None:
         parts.append(f"dependencies {size(report.dependencies_bytes)}")
+    if report.environment_seconds:
+        e = report.environment_seconds
+        parts.append(f"environment made in {e.create:.1f} s, removed in {e.remove:.1f} s")
     skipped = [c.id or str(c.index) for c in report.cells if c.skipped]
     if skipped:
         parts.append(f"skipped cells {', '.join(skipped)}")

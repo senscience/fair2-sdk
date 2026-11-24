@@ -26,6 +26,7 @@ modified; `--executed <folder>` writes the executed copies, with their outputs (
 | **Memory** | The peak resident memory of the kernel and the processes it starts (pip...), sampled every 0.2 s. |
 | **Downloads** | Through a local proxy, per host: the kernel gets `HTTP_PROXY` and `HTTPS_PROXY` pointing to it, and the processes it starts inherit them. Python's HTTP clients (urllib, requests: mlcroissant, pandas...), DuckDB, pip, `!curl` and `!wget` go through it; HTTPS as an encrypted tunnel, counted without being read. Per host, so the data (e.g. `sen.science`) and the packages (`files.pythonhosted.org`) are told apart. Not counted: clients that ignore the proxy variables, such as aiohttp without `trust_env=True` (fsspec's HTTP file system). An existing proxy (`HTTPS_PROXY`) is used upstream. |
 | **Dependencies** | With `--fresh-env`: the growth of the environment's site-packages folder, i.e. what the notebook installs. |
+| **Environment** | With `--fresh-env`, in `environment_seconds`: how long the environment took to make (a virtual environment with ipykernel) and to remove after the run (deleting what the notebook installed). Not part of the notebook's time. |
 | **Files written** | Files created or changed in the notebook's folder (its working directory, as in Jupyter). |
 
 `--fresh-env` runs each notebook in a new virtual environment with only ipykernel, as on a first
@@ -71,6 +72,7 @@ missing file (tracebacks shortened):
  "dependencies_bytes": null,
  "created": [],
  "modified": [],
+ "environment_seconds": null,
  "errors": {
   "runtime": [
    {"cell": 2, "name": "IOException", "message": "IO Error: No files found that match the pattern \"missing.csv\"",
