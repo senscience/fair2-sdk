@@ -178,6 +178,12 @@ runs:
         CACHE: ${{ inputs.cache-dependencies }}
         CACHE_KEY: ${{ steps.cache.outputs.cache-matched-key }}
       run: |
+        # pip installs without compiling to bytecode: Python compiles the modules a notebook
+        # imports when it imports them. Compiling everything pip installs (some 20,000 .pyc
+        # files for a notebook with plotly), then deleting them with the environment, took about
+        # a third of the install and removal times. "0" is not a mistake: pip reads the variable
+        # as the value of its compile option, so PIP_NO_COMPILE=0 is --no-compile, and =1 compiles.
+        export PIP_NO_COMPILE=0
         if [ "$CACHE" = "true" ]; then
           # The kernels and the pip and uv they start inherit them
           export PIP_CACHE_DIR="$RUNNER_TEMP/notebook-dependencies/pip"
