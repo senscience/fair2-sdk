@@ -1,5 +1,8 @@
+import contextlib
 import json
 import os
+import sys
+import time
 from pathlib import Path
 
 import nbformat
@@ -470,6 +473,30 @@ def test_the_command_gives_each_notebook_its_own_ids(tmp_path, capsys):
         cli.main([str(second), "--skip-cells", "nowhere"])
     assert exit.value.code == 2
     assert "no code cells with the ids ['nowhere']" in capsys.readouterr().err
+
+
+def test_the_command_times_making_and_removing_each_fresh_environment(
+    tmp_path, capsys, monkeypatch
+):
+    @contextlib.contextmanager
+    def environment(python=None):
+        time.sleep(0.2)  # made
+        yield sys.executable
+        time.sleep(0.3)  # removed
+
+    monkeypatch.setattr(cli, "fresh_environment", environment)
+    path = notebook(tmp_path, "print(1)")
+    assert cli.main([str(path), "--fresh-env", "--report", str(tmp_path / "r.json")]) == 0
+    seconds = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))[0]
+    seconds = seconds["environment_seconds"]
+    assert 0.2 <= seconds["create"] < 2 and 0.3 <= seconds["remove"] < 2
+    assert "environment made in 0.2 s, removed in 0.3 s" in capsys.readouterr().out
+    # Without a fresh environment, nothing to time
+    assert cli.main([str(path), "--report", str(tmp_path / "r.json")]) == 0
+    assert (
+        json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))[0]["environment_seconds"]
+        is None
+    )
 
 
 @pytest.mark.skipif(
