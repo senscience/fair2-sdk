@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -490,7 +491,10 @@ def test_the_command_times_making_and_removing_each_fresh_environment(
     seconds = json.loads((tmp_path / "r.json").read_text(encoding="utf-8"))[0]
     seconds = seconds["environment_seconds"]
     assert 0.2 <= seconds["create"] < 2 and 0.3 <= seconds["remove"] < 2
-    assert "environment made in 0.2 s, removed in 0.3 s" in capsys.readouterr().out
+    # The times as measured: their values depend on the machine (a slower CI runner sleeps longer)
+    assert re.search(
+        r"environment made in \d+\.\d s, removed in \d+\.\d s", capsys.readouterr().out
+    )
     # Without a fresh environment, nothing to time
     assert cli.main([str(path), "--report", str(tmp_path / "r.json")]) == 0
     assert (
